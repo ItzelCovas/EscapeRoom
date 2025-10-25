@@ -187,7 +187,7 @@ def lookat():
     """ Configura la cámara en una vista inclinada fija """
     glLoadIdentity()
     # Vista inclinada: (x=0, y=40, z=50) mirando al origen (0,0,0)
-    gluLookAt(0, 40, 50, 0, 0, 0, 0, 1, 0)
+    gluLookAt(0, 30, 50, 0, 0, 0, 0, 1, 0)
     
 def draw_floor():
     """ Dibuja el piso gris """
