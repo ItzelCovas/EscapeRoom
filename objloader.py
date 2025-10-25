@@ -92,18 +92,25 @@ class OBJ:
     def generate(self):
         self.gl_list = glGenLists(1)
         glNewList(self.gl_list, GL_COMPILE)
-        glEnable(GL_TEXTURE_2D)
+        # glDisable(GL_TEXTURE_2D) # Quitamos esto del inicio
         glFrontFace(GL_CCW)
         for face in self.faces:
             vertices, normals, texture_coords, material = face
 
             mtl = self.mtl[material]
             if 'texture_Kd' in mtl:
-                # use diffuse texmap
+                # --- INICIO CAMBIO ---
+                # Habilitar textura SÓLO si vamos a usar una
+                glEnable(GL_TEXTURE_2D)
                 glBindTexture(GL_TEXTURE_2D, mtl['texture_Kd'])
+                # --- FIN CAMBIO ---
             else:
-                # just use diffuse colour
+                # --- INICIO CAMBIO ---
+                # Deshabilitar textura si es solo color
+                glDisable(GL_TEXTURE_2D)
+                # Aplicamos el color que leímos del .mtl
                 glColor(*mtl['Kd'])
+                # --- FIN CAMBIO ---
 
             glBegin(GL_POLYGON)
             for i in range(len(vertices)):
@@ -113,6 +120,8 @@ class OBJ:
                     glTexCoord2fv(self.texcoords[texture_coords[i] - 1])
                 glVertex3fv(self.vertices[vertices[i] - 1])
             glEnd()
+            
+        # Nos aseguramos que al final de la lista, la textura quede deshabilitada
         glDisable(GL_TEXTURE_2D)
         glEndList()
 
