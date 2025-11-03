@@ -9,89 +9,132 @@ import math
 import random
 import objloader 
 
+# CLASE GHOST 
+class Ghost:
+    def __init__(self, plane_size=100):
+        self.model = objloader.OBJ('ghost.obj')
+        self.model.generate()
+        self.min_val = -plane_size / 2
+        self.max_val = plane_size / 2
+        
+        self.x = random.uniform(self.min_val, self.max_val)
+        self.y = 5.0
+        self.z = random.uniform(self.min_val, self.max_val)
+        
+        self.speed = 8.0         
+        self.target_x = 0
+        self.target_z = 0
+        self.get_new_random_target()
+
+        self.float_time = 0.0
+        self.float_amplitude = 2.0  
+        self.float_speed = 3.0
+        self.base_y = self.y
+
+        self.bound_margin = 8.0
+
+    def get_new_random_target(self):
+        self.target_x = random.uniform(self.min_val, self.max_val)
+        self.target_z = random.uniform(self.min_val, self.max_val)
+
+    def update(self, dt):
+        dir_x = self.target_x - self.x
+        dir_z = self.target_z - self.z
+        distance = math.sqrt(dir_x**2 + dir_z**2)
+        
+        if distance < 5.0:
+            self.get_new_random_target()
+        else:
+            norm_x = dir_x / max(distance, 1e-6)
+            norm_z = dir_z / max(distance, 1e-6)
+            self.x += norm_x * self.speed * dt
+            self.z += norm_z * self.speed * dt
+
+        # movimiento vertical (flotación)
+        self.float_time += dt
+        self.y = self.base_y + math.sin(self.float_time * self.float_speed) * self.float_amplitude
+
+        # confinamiento dentro del plano
+        prev_x, prev_z = self.x, self.z
+        self.x = max(self.min_val + self.bound_margin, min(self.x, self.max_val - self.bound_margin))
+        self.z = max(self.min_val + self.bound_margin, min(self.z, self.max_val - self.bound_margin))
+        if (self.x != prev_x) or (self.z != prev_z):
+            self.get_new_random_target()
+
+    def draw(self):
+        try:
+            glPushMatrix()
+            glTranslatef(self.x, self.y, self.z)
+            glScalef(1.5, 1.5, 1.5)  
+            self.model.render()
+        finally:
+            glPopMatrix()
+
+
 # CLASE PERSONAJE
 class Personaje:
     def __init__(self, model_paths):
         """Carga todos los modelos del personaje"""
-        
-        # Carga los modelos
         self.body = objloader.OBJ(model_paths['body'])
         self.arm_l = objloader.OBJ(model_paths['arm_l'])
         self.arm_r = objloader.OBJ(model_paths['arm_r'])
         self.leg_l = objloader.OBJ(model_paths['leg_l'])
         self.leg_r = objloader.OBJ(model_paths['leg_r'])
         
-        # Genera las listas de OpenGL para cada parte
         self.body.generate()
         self.arm_l.generate()
         self.arm_r.generate()
         self.leg_l.generate()
         self.leg_r.generate()
 
-        # Posición y rotación del personaje
         self.x = 0.0
-        self.y = 5.0  # Elevamos al personaje para que esté sobre el piso
+        self.y = 5.0
         self.z = 0.0
-        self.angle_y = 0.0 # Rotación sobre el eje Y
+        self.angle_y = 0.0
 
-        # Variables de animación de caminata
         self.walk_time = 0.0
-        self.leg_amplitude = 25.0   # Grados de rotación de la PIERNA
-        self.arm_amplitude = 5.0   # Grados de rotación del BRAZO 
-        self.walk_speed = 10.0      # Qué tan rápido mueve las piernas
+        self.leg_amplitude = 25.0
+        self.arm_amplitude = 5.0
+        self.walk_speed = 10.0
 
     def update(self, dt, is_moving):
-        """Actualiza el tiempo de animación si el personaje se está moviendo"""
         if is_moving:
             self.walk_time += dt
 
     def draw(self):
-        """Dibuja el personaje completo con animación"""
         try:
             glPushMatrix()
-            
-            # 1. Transformaciones globales del personaje (posición y rotación)
             glTranslatef(self.x, self.y, self.z)
             glRotatef(self.angle_y, 0.0, 1.0, 0.0)
             glScalef(5.0, 5.0, 5.0)
 
-            # 2. Dibujar cuerpo (estático)
             self.body.render()
 
-        
-            # 3. Calcular ángulos de caminata (separados)
             base_angle = math.sin(self.walk_time * self.walk_speed)
             leg_angle = self.leg_amplitude * base_angle
             arm_angle = self.arm_amplitude * base_angle
 
-            # 4. Dibujar Brazo Izquierdo 
             glPushMatrix()
-            glRotatef(-arm_angle, 1.0, 0.0, 0.0) 
+            glRotatef(-arm_angle, 1.0, 0.0, 0.0)
             self.arm_l.render()
             glPopMatrix()
 
-            # 5. Dibujar Brazo Derecho 
             glPushMatrix()
-            glRotatef(arm_angle, 1.0, 0.0, 0.0) 
+            glRotatef(arm_angle, 1.0, 0.0, 0.0)
             self.arm_r.render()
             glPopMatrix()
             
-            # 6. Dibujar Pierna Izquierda 
             glPushMatrix()
-            glRotatef(leg_angle, 1.0, 0.0, 0.0) 
+            glRotatef(leg_angle, 1.0, 0.0, 0.0)
             self.leg_l.render()
             glPopMatrix()
 
-            # 7. Dibujar Pierna Derecha 
             glPushMatrix()
-            glRotatef(-leg_angle, 1.0, 0.0, 0.0) 
+            glRotatef(-leg_angle, 1.0, 0.0, 0.0)
             self.leg_r.render()
             glPopMatrix()
-            
-
         finally:
-            glPopMatrix() # Restaura la matriz de transformación
-
+            glPopMatrix()
 
 
 # CONFIGURACION GLOBAL
@@ -110,19 +153,16 @@ Y_MAX = 50
 Z_MIN = -50
 Z_MAX = 50
 
-# Variable global para el personaje
 personaje = None
+ghost = None
 
-# Variables para el control
 move_speed = 25.0
-rotate_speed = 100.0 # Grados por segundo
+rotate_speed = 100.0
 
 pygame.init()
-glutInit() # Necesario para el objloader
 
 
 def Axis():
-    """ Dibuja los ejes X, Y, Z (opcional) """
     glDisable(GL_LIGHTING)
     glLineWidth(1.0)
     glColor3f(1.0,0.0,0.0)
@@ -143,12 +183,10 @@ def Axis():
     glEnable(GL_LIGHTING)
 
 def Init():
-    """ Inicializa pygame y OpenGL """
-    global personaje
-    
+    global personaje, ghost
     screen = pygame.display.set_mode(
         (screen_width, screen_height), DOUBLEBUF | OPENGL)
-    pygame.display.set_caption("Test Personaje Caminando (con PyGame)")
+    pygame.display.set_caption("Personaje + Fantasma")
 
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
@@ -157,11 +195,10 @@ def Init():
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     
-    glClearColor(0.0, 0.0, 0.0, 1.0); # Fondo negro
+    glClearColor(0.0, 0.0, 0.0, 1.0)
     glEnable(GL_DEPTH_TEST)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
     
-    # Luces (igual que en fantasma.py)
     glLightfv(GL_LIGHT0, GL_POSITION,  (0, 200, 0, 0.0))
     glLightfv(GL_LIGHT0, GL_AMBIENT, (0.5, 0.5, 0.5, 1.0))
     glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
@@ -170,7 +207,6 @@ def Init():
     glEnable(GL_COLOR_MATERIAL)
     glShadeModel(GL_SMOOTH)
     
-    # Rutas a los modelos
     model_paths = {
         'body': 'body_head.obj',
         'arm_l': 'arm_left.obj',
@@ -178,20 +214,15 @@ def Init():
         'leg_l': 'leg_left.obj',
         'leg_r': 'leg_right.obj'
     }
-    
-    # Creamos el personaje
     personaje = Personaje(model_paths)
-
+    ghost = Ghost(plane_size=DimBoard * 2)
 
 def lookat():
-    """ Configura la cámara en una vista inclinada fija """
     glLoadIdentity()
-    # Vista inclinada: (x=0, y=40, z=50) mirando al origen (0,0,0)
     gluLookAt(0, 30, 50, 0, 0, 0, 0, 1, 0)
     
 def draw_floor():
-    """ Dibuja el piso gris """
-    glColor3f(0.3, 0.3, 0.3) # Gris
+    glColor3f(0.3, 0.3, 0.3)
     glBegin(GL_QUADS)
     glNormal3f(0.0, 1.0, 0.0)
     glVertex3d(-DimBoard, 0, -DimBoard)
@@ -201,73 +232,54 @@ def draw_floor():
     glEnd()
     
 def display(dt, is_moving):
-    """ Funcion principal de dibujado """
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    
-    # 1. Actualizamos la camara
     lookat()
-    
-    # 2. Dibujamos los elementos
-    Axis() 
+    Axis()
     draw_floor()
-        
-    # 3. Actualizamos y dibujamos el personaje
-    personaje.update(dt, is_moving) # Le pasamos el deltatime y si se mueve
+    personaje.update(dt, is_moving)
+    ghost.update(dt)
+    ghost.draw()
     personaje.draw()
-    
 
-# BUCLE PRINCIPAL 
+# BUCLE PRINCIPAL
 done = False
 Init()
 clock = pygame.time.Clock()
 
 while not done:
-    
     dt = clock.tick(60) / 1000.0 
-    
     keys = pygame.key.get_pressed()
-    
-    is_moving = False # Reseteamos el flag en cada frame
+    is_moving = False
 
-    # Controles de personaje (movimiento y rotación)
     if keys[pygame.K_UP]:
-        # Moverse hacia adelante (en la dirección de la rotación)
         angle_rad = math.radians(personaje.angle_y)
         personaje.x += math.sin(angle_rad) * move_speed * dt
         personaje.z += math.cos(angle_rad) * move_speed * dt
         is_moving = True
         
     if keys[pygame.K_DOWN]:
-        # Moverse hacia atrás
         angle_rad = math.radians(personaje.angle_y)
         personaje.x -= math.sin(angle_rad) * move_speed * dt
         personaje.z -= math.cos(angle_rad) * move_speed * dt
         is_moving = True
 
     if keys[pygame.K_LEFT]:
-        # Rotar a la izquierda
         personaje.angle_y += rotate_speed * dt
-        is_moving = True # Las piernas se mueven al rotar
+        is_moving = True 
         
     if keys[pygame.K_RIGHT]:
-        # Rotar a la derecha
         personaje.angle_y -= rotate_speed * dt
-        is_moving = True # Las piernas se mueven al rotar
+        is_moving = True 
         
-    
     personaje.x = max(-DimBoard +6, min(personaje.x, DimBoard -5))
     personaje.z = max(-DimBoard +9, min(personaje.z, DimBoard -5))
-    
-    
-    # Eventos 
+
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 done = True
 
     display(dt, is_moving)
-
-    # Actualizamos la pantalla
     pygame.display.flip()
 
 pygame.quit()
