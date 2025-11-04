@@ -47,11 +47,15 @@ class Ghost:
         #self.target_x = 0
         #self.target_z = 0
         #self.get_new_random_target()
-
+        
+        #Flotación
         self.float_time = 0.0
         self.float_amplitude = 2.0  
         self.float_speed = 3.0
         self.base_y = self.y
+        
+        # Ángulo de rotación
+        self.angle_y = 0.0
         
         # Inicializar posición OpenGL basada en grid inicial
         self.x = (self.grid_x - 5.5) * 10.0
@@ -78,7 +82,7 @@ class Ghost:
             self.target_grid_y = grid_y
             self.target_x, self.target_z = self.grid_to_opengl(grid_x, grid_y)
             
-    def update(self, grid_x, grid_y, dt):
+    def update(self, dt):
         """Actualiza la posición con interpolación suave"""
         # Calcular distancia al objetivo
         dx = self.target_x - self.x
