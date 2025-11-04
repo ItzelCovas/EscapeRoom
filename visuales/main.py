@@ -79,11 +79,31 @@ class Ghost:
             self.target_x, self.target_z = self.grid_to_opengl(grid_x, grid_y)
             
     def update(self, grid_x, grid_y, dt):
-        """Actualiza posición desde coordenadas del grid de Julia (1-10)"""
-        # Convertir grid 10x10 a coordenadas OpenGL
-        # Grid 1-10 -> OpenGL -45 a 45 (escalado para que quepa en el tablero de 100x100)
-        self.x = (grid_x - 5.5) * 10.0
-        self.z = (grid_y - 5.5) * 10.0
+        """Actualiza la posición con interpolación suave"""
+        # Calcular distancia al objetivo
+        dx = self.target_x - self.x
+        dz = self.target_z - self.z
+        distance = math.sqrt(dx**2 + dz**2)
+        
+        # Si estamos cerca del objetivo, ajustar directamente
+        if distance < self.interpolation_speed:
+            self.x = self.target_x
+            self.z = self.target_z
+            self.grid_x = self.target_grid_x
+            self.grid_y = self.target_grid_y
+        elif distance > 0:
+            # Interpolar hacia el objetivo
+            # Normalizar dirección y mover
+            norm_dx = dx / distance
+            norm_dz = dz / distance
+            self.x += norm_dx * self.interpolation_speed
+            self.z += norm_dz * self.interpolation_speed
+        
+        # """Actualiza posición desde coordenadas del grid de Julia (1-10)"""
+        # # Convertir grid 10x10 a coordenadas OpenGL
+        # # Grid 1-10 -> OpenGL -45 a 45 (escalado para que quepa en el tablero de 100x100)
+        # self.x = (grid_x - 5.5) * 10.0
+        # self.z = (grid_y - 5.5) * 10.0
 
         # dir_x = self.target_x - self.x
         # dir_z = self.target_z - self.z
@@ -280,11 +300,36 @@ def draw_floor():
     glVertex3d(DimBoard, 0, -DimBoard)
     glEnd()
     
+# Variable global para controlar la frecuencia de consultas a Julia
+frame_count = 0
+julia_update_interval = 10  # Consultar Julia cada 10 frames (ajusta según necesites)
+
 def display(dt, is_moving):
+    global frame_count
+    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     lookat()
     Axis()
     draw_floor()
+    
+    # Solo consultar Julia cada cierto número de frames
+    frame_count += 1
+    if frame_count >= julia_update_interval:
+        frame_count = 0
+        try:
+            res = requests.get("http://localhost:8000/run", timeout=0.5)
+            data = res.json()
+            
+            # Actualizar la posición objetivo del ghost
+            if data['agents']:
+                grid_x = data['agents'][0]['pos'][0]
+                grid_y = data['agents'][0]['pos'][1]
+                ghost.set_target_position(grid_x, grid_y)
+        except Exception as e:
+            print(f"Error conectando con Julia: {e}")
+    
+    # Actualizar interpolación del ghost cada frame
+    ghost.update(dt)
     
     # Solicitar al backend el avanzar la simulación un paso y recuperar posiciones
     try:
