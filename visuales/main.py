@@ -185,6 +185,44 @@ class Personaje:
             glPopMatrix()
 
 
+# CLASE KEY
+class Key:
+    def __init__(self, model_path, pos=[0,0,0], scale=1.0):
+        try:
+            # swapyz=True es util si el modelo viene de Blender
+            self.model = objloader.OBJ(model_path, swapyz=True) 
+            self.model.generate()
+            self.position = pos
+            self.scale = scale
+            self.angle = 0.0 # Angulo para rotar
+        except Exception as e:
+            print(f"Error cargando '{model_path}': {e}")
+            pygame.quit()
+            exit()
+
+    def update(self, dt):
+        # Animacion simple de rotacion
+        self.angle += 45 * dt # 45 grados por segundo
+        if self.angle > 360:
+            self.angle -= 360
+
+    def draw(self):
+        try:
+            glPushMatrix()
+            # 1. Mover a su posicion
+            glTranslatef(self.position[0], self.position[1], self.position[2])
+            # 2. Rotar para animacion
+            glRotatef(self.angle, 0, 1, 0) # Rota sobre Y
+            # 3. Escalar
+            glScalef(self.scale, self.scale, self.scale)
+            # 4. (Opcional) Rotar si sale 'acostada'
+            glRotatef(-90, 1, 0, 0)
+            
+            self.model.render()
+        finally:
+            glPopMatrix()
+
+
 # CONFIGURACION GLOBAL
 screen_width = 1050
 screen_height = 800
@@ -201,8 +239,10 @@ Y_MAX = 50
 Z_MIN = -50
 Z_MAX = 50
 
+#variables globales
 personaje = None
 ghost = None
+keys_list = [] # lista de llaves en la escena
 
 move_speed = 25.0
 rotate_speed = 100.0
@@ -231,7 +271,7 @@ def Axis():
     glEnable(GL_LIGHTING)
 
 def Init():
-    global personaje, ghost
+    global personaje, ghost, keys_list
     screen = pygame.display.set_mode(
         (screen_width, screen_height), DOUBLEBUF | OPENGL)
     pygame.display.set_caption("Personaje + Fantasma con julia")
@@ -263,8 +303,14 @@ def Init():
         'leg_r': 'leg_right.obj'
     }
     personaje = Personaje(model_paths)
-    # ghost = Ghost(plane_size=DimBoard * 2)
-    ghost = Ghost()
+    ghost = Ghost(plane_size=DimBoard * 2)
+    
+    #se crean las 3 llaves
+    keys_list = [
+        Key('key.obj', pos=[10, 5, 30], scale=4.0),
+        Key('key.obj', pos=[-30, 5, -20], scale=4.0),
+        Key('key.obj', pos=[20, 5, -20], scale=4.0)
+    ]
 
 def lookat():
     glLoadIdentity()
@@ -300,9 +346,16 @@ def display(dt, is_moving):
         print(f"Error conectando con Julia: {e}")
         
     personaje.update(dt, is_moving)
-    #ghost.update(dt)
+    ghost.update(dt)
+    
+    for key in keys_list:
+        key.update(dt)
+        
     ghost.draw()
     personaje.draw()
+    
+    for key in keys_list:
+        key.draw()
 
 # BUCLE PRINCIPAL
 done = False
