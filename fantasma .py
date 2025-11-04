@@ -135,7 +135,7 @@ def Init():
     
     screen = pygame.display.set_mode(
         (screen_width, screen_height), DOUBLEBUF | OPENGL)
-    pygame.display.set_caption("Escape Room - Test Fantasma (con PyGame)")
+    pygame.display.set_caption("Escape Room - Test Fantasma")
 
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
@@ -159,7 +159,7 @@ def Init():
     glShadeModel(GL_SMOOTH)
     
     #Creamos el fantasma
-    ghost = Ghost('ghost.obj', plane_size=250)
+    ghost = Ghost('ghost_low.obj', plane_size=250)
 
 
 def lookat():

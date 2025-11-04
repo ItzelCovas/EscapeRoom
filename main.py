@@ -12,7 +12,7 @@ import objloader
 # CLASE GHOST 
 class Ghost:
     def __init__(self, plane_size=100):
-        self.model = objloader.OBJ('ghost.obj')
+        self.model = objloader.OBJ('ghost_low.obj')
         self.model.generate()
         self.min_val = -plane_size / 2
         self.max_val = plane_size / 2
