@@ -17,6 +17,8 @@ class Ghost:
         self.min_val = -plane_size / 2
         self.max_val = plane_size / 2
         
+        self.angle_y = 0.0
+        
         self.x = random.uniform(self.min_val, self.max_val)
         self.y = 5.0
         self.z = random.uniform(self.min_val, self.max_val)
@@ -49,6 +51,9 @@ class Ghost:
             norm_z = dir_z / max(distance, 1e-6)
             self.x += norm_x * self.speed * dt
             self.z += norm_z * self.speed * dt
+            target_angle = math.degrees(math.atan2(norm_x, norm_z))
+            self.angle_y += (target_angle - self.angle_y) * 0.4  # 0.1 = suavidad (ajusta entre 0.05 y 0.2)
+
 
         # movimiento vertical (flotación)
         self.float_time += dt
@@ -65,6 +70,7 @@ class Ghost:
         try:
             glPushMatrix()
             glTranslatef(self.x, self.y, self.z)
+            glRotatef(self.angle_y, 0.0, 1.0, 0.0)
             glScalef(1.5, 1.5, 1.5)  
             self.model.render()
         finally:
