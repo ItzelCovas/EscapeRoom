@@ -7,59 +7,106 @@ from OpenGL.GLUT import *
 
 import math
 import random
-import objloader 
+import objloader
+import requests
 
 # CLASE GHOST 
 class Ghost:
     def __init__(self, plane_size=100):
         self.model = objloader.OBJ('ghost.obj')
         self.model.generate()
-        self.min_val = -plane_size / 2
-        self.max_val = plane_size / 2
-        
-        self.x = random.uniform(self.min_val, self.max_val)
+
+        # Posición actual en OpenGL
+        self.x = 0.0
         self.y = 5.0
-        self.z = random.uniform(self.min_val, self.max_val)
+        self.z = 0.0
         
-        self.speed = 8.0         
-        self.target_x = 0
-        self.target_z = 0
-        self.get_new_random_target()
+        # Posición actual del grid (Julia)
+        self.grid_x = 5
+        self.grid_y = 5
+        
+        # Posición objetivo del grid (Julia)
+        self.target_grid_x = 5
+        self.target_grid_y = 5
+        
+        # Posición objetivo en OpenGL
+        self.target_x = 0.0
+        self.target_z = 0.0
+        
+        # Velocidad de interpolación (unidades OpenGL por frame)
+        self.interpolation_speed = 0.50
+        
+        #self.min_val = -plane_size / 2
+        #self.max_val = plane_size / 2
+        
+        #self.x = random.uniform(self.min_val, self.max_val)
+        #self.y = 5.0
+        #self.z = random.uniform(self.min_val, self.max_val)
+        
+        #self.speed = 8.0         
+        #self.target_x = 0
+        #self.target_z = 0
+        #self.get_new_random_target()
 
         self.float_time = 0.0
         self.float_amplitude = 2.0  
         self.float_speed = 3.0
         self.base_y = self.y
-
-        self.bound_margin = 8.0
-
-    def get_new_random_target(self):
-        self.target_x = random.uniform(self.min_val, self.max_val)
-        self.target_z = random.uniform(self.min_val, self.max_val)
-
-    def update(self, dt):
-        dir_x = self.target_x - self.x
-        dir_z = self.target_z - self.z
-        distance = math.sqrt(dir_x**2 + dir_z**2)
         
-        if distance < 5.0:
-            self.get_new_random_target()
-        else:
-            norm_x = dir_x / max(distance, 1e-6)
-            norm_z = dir_z / max(distance, 1e-6)
-            self.x += norm_x * self.speed * dt
-            self.z += norm_z * self.speed * dt
+        # Inicializar posición OpenGL basada en grid inicial
+        self.x = (self.grid_x - 5.5) * 10.0
+        self.z = (self.grid_y - 5.5) * 10.0
+        self.target_x = self.x
+        self.target_z = self.z
+
+        #self.bound_margin = 8.0
+
+    # def get_new_random_target(self):
+    #     self.target_x = random.uniform(self.min_val, self.max_val)
+    #     self.target_z = random.uniform(self.min_val, self.max_val)
+
+    def grid_to_opengl(self, grid_x, grid_y):
+        """Convierte coordenadas del grid de Julia (1-10) a OpenGL"""
+        opengl_x = (grid_x - 5.5) * 10.0
+        opengl_z = (grid_y - 5.5) * 10.0
+        return opengl_x, opengl_z
+
+    def set_target_position(self, grid_x, grid_y):
+        """Establece nueva posición objetivo desde el grid de Julia"""
+        if grid_x != self.target_grid_x or grid_y != self.target_grid_y:
+            self.target_grid_x = grid_x
+            self.target_grid_y = grid_y
+            self.target_x, self.target_z = self.grid_to_opengl(grid_x, grid_y)
+            
+    def update(self, grid_x, grid_y, dt):
+        """Actualiza posición desde coordenadas del grid de Julia (1-10)"""
+        # Convertir grid 10x10 a coordenadas OpenGL
+        # Grid 1-10 -> OpenGL -45 a 45 (escalado para que quepa en el tablero de 100x100)
+        self.x = (grid_x - 5.5) * 10.0
+        self.z = (grid_y - 5.5) * 10.0
+
+        # dir_x = self.target_x - self.x
+        # dir_z = self.target_z - self.z
+        # distance = math.sqrt(dir_x**2 + dir_z**2)
+        
+        # if distance < 5.0:
+        #     self.get_new_random_target()
+        # else:
+        #     norm_x = dir_x / max(distance, 1e-6)
+        #     norm_z = dir_z / max(distance, 1e-6)
+        #     self.x += norm_x * self.speed * dt
+        #     self.z += norm_z * self.speed * dt
 
         # movimiento vertical (flotación)
         self.float_time += dt
         self.y = self.base_y + math.sin(self.float_time * self.float_speed) * self.float_amplitude
 
-        # confinamiento dentro del plano
-        prev_x, prev_z = self.x, self.z
-        self.x = max(self.min_val + self.bound_margin, min(self.x, self.max_val - self.bound_margin))
-        self.z = max(self.min_val + self.bound_margin, min(self.z, self.max_val - self.bound_margin))
-        if (self.x != prev_x) or (self.z != prev_z):
-            self.get_new_random_target()
+        # # confinamiento dentro del plano
+        # prev_x, prev_z = self.x, self.z
+        # self.x = max(self.min_val + self.bound_margin, min(self.x, self.max_val - self.bound_margin))
+        # self.z = max(self.min_val + self.bound_margin, min(self.z, self.max_val - self.bound_margin))
+        # if (self.x != prev_x) or (self.z != prev_z):
+        #     self.get_new_random_target()
 
     def draw(self):
         try:
@@ -186,7 +233,7 @@ def Init():
     global personaje, ghost
     screen = pygame.display.set_mode(
         (screen_width, screen_height), DOUBLEBUF | OPENGL)
-    pygame.display.set_caption("Personaje + Fantasma")
+    pygame.display.set_caption("Personaje + Fantasma con julia")
 
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
@@ -215,7 +262,8 @@ def Init():
         'leg_r': 'leg_right.obj'
     }
     personaje = Personaje(model_paths)
-    ghost = Ghost(plane_size=DimBoard * 2)
+    # ghost = Ghost(plane_size=DimBoard * 2)
+    ghost = Ghost()
 
 def lookat():
     glLoadIdentity()
@@ -236,8 +284,22 @@ def display(dt, is_moving):
     lookat()
     Axis()
     draw_floor()
+    
+    # Solicitar al backend el avanzar la simulación un paso y recuperar posiciones
+    try:
+        res = requests.get("http://localhost:8000/run")
+        data = res.json()
+        
+        # Actualizar ghost con la posición del primer agente
+        if data['agents']:
+            grid_x = data['agents'][0]['pos'][0]
+            grid_y = data['agents'][0]['pos'][1]
+            ghost.update(grid_x, grid_y, dt)
+    except Exception as e:
+        print(f"Error conectando con Julia: {e}")
+        
     personaje.update(dt, is_moving)
-    ghost.update(dt)
+    #ghost.update(dt)
     ghost.draw()
     personaje.draw()
 
@@ -281,5 +343,6 @@ while not done:
 
     display(dt, is_moving)
     pygame.display.flip()
+    pygame.time.wait(100)
 
 pygame.quit()
