@@ -112,6 +112,7 @@ class Ghost:
         try:
             glPushMatrix()
             glTranslatef(self.x, self.y, self.z)
+            glRotatef(self.angle_y, 0.0, 1.0, 0.0)
             glScalef(1.5, 1.5, 1.5)  
             self.model.render()
         finally:
