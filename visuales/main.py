@@ -9,6 +9,8 @@ import math
 import random
 import objloader
 import requests
+import os
+os.chdir(os.path.dirname(__file__))
 
 # CLASE GHOST 
 class Ghost:
