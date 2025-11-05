@@ -36,7 +36,7 @@ class Ghost:
         self.target_z = 0.0
         
         # Velocidad de interpolación (unidades OpenGL por frame)
-        self.interpolation_speed = 0.50
+        self.interpolation_speed = 2.0
         
         #self.min_val = -plane_size / 2
         #self.max_val = plane_size / 2
