@@ -332,22 +332,22 @@ def display(dt, is_moving):
         except Exception as e:
             print(f"Error conectando con Julia: {e}")
     
+    
+    # # Solicitar al backend el avanzar la simulación un paso y recuperar posiciones
+    # try:
+    #     res = requests.get("http://localhost:8000/run")
+    #     data = res.json()
+        
+    #     # Actualizar ghost con la posición del primer agente
+    #     if data['agents']:
+    #         grid_x = data['agents'][0]['pos'][0]
+    #         grid_y = data['agents'][0]['pos'][1]
+    #         ghost.update(grid_x, grid_y, dt)
+    # except Exception as e:
+    #     print(f"Error conectando con Julia: {e}")
+    
     # Actualizar interpolación del ghost cada frame
     ghost.update(dt)
-    
-    # Solicitar al backend el avanzar la simulación un paso y recuperar posiciones
-    try:
-        res = requests.get("http://localhost:8000/run")
-        data = res.json()
-        
-        # Actualizar ghost con la posición del primer agente
-        if data['agents']:
-            grid_x = data['agents'][0]['pos'][0]
-            grid_y = data['agents'][0]['pos'][1]
-            ghost.update(grid_x, grid_y, dt)
-    except Exception as e:
-        print(f"Error conectando con Julia: {e}")
-        
     personaje.update(dt, is_moving)
     #ghost.update(dt)
     ghost.draw()
@@ -393,6 +393,6 @@ while not done:
 
     display(dt, is_moving)
     pygame.display.flip()
-    pygame.time.wait(100)
+    pygame.time.wait(50)
 
 pygame.quit()
