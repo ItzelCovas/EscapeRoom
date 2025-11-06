@@ -3,7 +3,7 @@ using Genie, Genie.Renderer.Json, Genie.Requests, HTTP
 using UUIDs
 
 route("/run") do
-    step!(model, 1)
+    step!(model, agent_step!, 1)
     #run!(model, 1)
     agents = []
     for ghost in allagents(model)
