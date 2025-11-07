@@ -36,7 +36,7 @@ class Ghost:
         self.target_z = 0.0
         
         # Velocidad de interpolación (unidades OpenGL por frame)
-        self.interpolation_speed = 2.0
+        self.interpolation_speed = 5.0
         
         #self.min_val = -plane_size / 2
         #self.max_val = plane_size / 2
@@ -346,7 +346,7 @@ def display(dt, is_moving):
         if data['agents']:
             grid_x = data['agents'][0]['pos'][0]
             grid_y = data['agents'][0]['pos'][1]
-            ghost.update(grid_x, grid_y, dt)
+            ghost.set_target_position(grid_x, grid_y)
     except Exception as e:
         print(f"Error conectando con Julia: {e}")
         
