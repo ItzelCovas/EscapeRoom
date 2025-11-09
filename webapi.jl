@@ -2,19 +2,19 @@ include("agents.jl")
 using Genie, Genie.Renderer.Json, Genie.Requests, HTTP
 using UUIDs
 
+model = initialize_model()
+
 route("/run") do
     step!(model, 1)
     #run!(model, 1)
-    agents = []
-    for ghost in allagents(model)
-        push!(agents, Dict(
-            "id" => ghost.id,
-            "pos" => [ghost.pos[1], ghost.pos[2]],
-            "type" => ghost.type
-        ))
-    end
+    
+    ghosts=[Tuple(a.pos) for a in allagents(model) if a isa Ghost]
+    keys=[Tuple(a.pos) for a in allagents(model) if a isa Key && !a.collected]
 
-    json(Dict(:msg => "Adios", "agents" => agents))
+    json(Dict(
+        "ghost"=>ghosts,
+        "keys"=>keys
+    ))
 end
 
 Genie.config.run_as_server = true

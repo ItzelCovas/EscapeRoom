@@ -9,6 +9,8 @@ import math
 import random
 import objloader
 import requests
+import os
+os.chdir(os.path.dirname(__file__))
 
 # CLASE GHOST 
 class Ghost:
@@ -34,7 +36,7 @@ class Ghost:
         self.target_z = 0.0
         
         # Velocidad de interpolación (unidades OpenGL por frame)
-        self.interpolation_speed = 0.50
+        self.interpolation_speed = 5.0
         
         #self.min_val = -plane_size / 2
         #self.max_val = plane_size / 2
@@ -47,17 +49,19 @@ class Ghost:
         #self.target_x = 0
         #self.target_z = 0
         #self.get_new_random_target()
-
+        
+        #Flotación
         self.float_time = 0.0
         self.float_amplitude = 2.0  
         self.float_speed = 3.0
         self.base_y = self.y
         
+        # Ángulo de rotación
+        self.angle_y = 0.0
+        
         # Inicializar posición OpenGL basada en grid inicial
-        self.x = (self.grid_x - 5.5) * 10.0
-        self.z = (self.grid_y - 5.5) * 10.0
-        self.target_x = self.x
-        self.target_z = self.z
+        self.x, self.z = self.grid_to_opengl(self.grid_x, self.grid_y)
+        self.target_x, self.target_z=self.x, self.z
 
         #self.bound_margin = 8.0
 
@@ -78,12 +82,32 @@ class Ghost:
             self.target_grid_y = grid_y
             self.target_x, self.target_z = self.grid_to_opengl(grid_x, grid_y)
             
-    def update(self, grid_x, grid_y, dt):
-        """Actualiza posición desde coordenadas del grid de Julia (1-10)"""
-        # Convertir grid 10x10 a coordenadas OpenGL
-        # Grid 1-10 -> OpenGL -45 a 45 (escalado para que quepa en el tablero de 100x100)
-        self.x = (grid_x - 5.5) * 10.0
-        self.z = (grid_y - 5.5) * 10.0
+    def update(self, dt):
+        """Actualiza la posición con interpolación suave"""
+        # Calcular distancia al objetivo
+        dx = self.target_x - self.x
+        dz = self.target_z - self.z
+        distance = math.sqrt(dx**2 + dz**2)
+        
+        # Si estamos cerca del objetivo, ajustar directamente
+        if distance < self.interpolation_speed:
+            self.x = self.target_x
+            self.z = self.target_z
+            self.grid_x = self.target_grid_x
+            self.grid_y = self.target_grid_y
+        elif distance > 0:
+            # Interpolar hacia el objetivo
+            # Normalizar dirección y mover
+            norm_dx = dx / distance
+            norm_dz = dz / distance
+            self.x += norm_dx * self.interpolation_speed
+            self.z += norm_dz * self.interpolation_speed
+        
+        # """Actualiza posición desde coordenadas del grid de Julia (1-10)"""
+        # # Convertir grid 10x10 a coordenadas OpenGL
+        # # Grid 1-10 -> OpenGL -45 a 45 (escalado para que quepa en el tablero de 100x100)
+        # self.x = (grid_x - 5.5) * 10.0
+        # self.z = (grid_y - 5.5) * 10.0
 
         # dir_x = self.target_x - self.x
         # dir_z = self.target_z - self.z
@@ -117,7 +141,33 @@ class Ghost:
             self.model.render()
         finally:
             glPopMatrix()
+            
+            
 
+# CLASE LLAVE
+class Key:
+    def __init__(self, x, y):
+        self.model=objloader.OBJ('key.obj')
+        self.model.generate()
+        self.grid_x=x
+        self.grid_y=y
+        self.x, self.z=self.grid_to_opengl(x, y)
+        self.y=3.0
+        self.collected=False
+        
+    def grid_to_opengl(self, grid_x, grid_y):
+        return (grid_x-5.5)*10.0,(grid_y-5.5)*10.0
+    
+    def update(self, collected):
+        self.collected=collected
+        
+    def draw(self):
+        if not self.collected:
+            glPushMatrix()
+            glTranslatef(self.x, self.y, self.z)
+            glScalef(2.0, 2.0, 2.0)
+            self.model.render()
+            glPopMatrix()
 
 # CLASE PERSONAJE
 class Personaje:
@@ -316,6 +366,17 @@ def lookat():
     glLoadIdentity()
     gluLookAt(0, 30, 50, 0, 0, 0, 0, 1, 0)
     
+def get_ghost_from_julia():
+    try:
+        res=requests.get("http://localhost:8000/update", timeout=0.5)
+        data=res.json()
+        if "ghost" in data and data["ghost"]:
+            pos = data["ghosts"][0]
+            return pos[0], pos[1]
+    except Exception as e:
+        print(f"Error conectando con Julia: {e}")
+    return None
+    
 def draw_floor():
     glColor3f(0.3, 0.3, 0.3)
     glBegin(GL_QUADS)
@@ -326,25 +387,23 @@ def draw_floor():
     glVertex3d(DimBoard, 0, -DimBoard)
     glEnd()
     
+# Variable global para controlar la frecuencia de consultas a Julia
+frame_count = 0
+julia_update_interval = 10  # Consultar Julia cada 10 frames (ajusta según necesites)
+
 def display(dt, is_moving):
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     lookat()
     Axis()
     draw_floor()
-    
-    # Solicitar al backend el avanzar la simulación un paso y recuperar posiciones
-    try:
-        res = requests.get("http://localhost:8000/run")
-        data = res.json()
-        
-        # Actualizar ghost con la posición del primer agente
-        if data['agents']:
-            grid_x = data['agents'][0]['pos'][0]
-            grid_y = data['agents'][0]['pos'][1]
-            ghost.update(grid_x, grid_y, dt)
-    except Exception as e:
-        print(f"Error conectando con Julia: {e}")
-        
+
+    #Consultar nueva posición del fantasma
+    ghost_pos = get_ghost_from_julia()
+    if ghost_pos:
+        grid_x, grid_y = ghost_pos
+        ghost.set_target_position(grid_x, grid_y)
+
+    ghost.update(dt)
     personaje.update(dt, is_moving)
     ghost.update(dt)
     
@@ -397,6 +456,6 @@ while not done:
 
     display(dt, is_moving)
     pygame.display.flip()
-    pygame.time.wait(100)
+    pygame.time.wait(50)
 
 pygame.quit()
