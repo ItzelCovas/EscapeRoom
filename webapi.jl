@@ -2,12 +2,14 @@ include("agents.jl")
 using Genie, Genie.Renderer.Json, Genie.Requests, HTTP
 using UUIDs
 
+model = initialize_model()
+
 route("/run") do
-    step!(model, agent_step!, 1)
+    step!(model, 1)
     #run!(model, 1)
     
-    ghost=[Tuple(a.pos) for a in allagents(model) if a isa Ghost]
-    key=[Tuple(a.pos) for a in allagents(model) if a isa Key && 1a.collected]
+    ghosts=[Tuple(a.pos) for a in allagents(model) if a isa Ghost]
+    keys=[Tuple(a.pos) for a in allagents(model) if a isa Key && !a.collected]
 
     json(Dict(
         "ghost"=>ghosts,
