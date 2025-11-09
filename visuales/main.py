@@ -60,10 +60,8 @@ class Ghost:
         self.angle_y = 0.0
         
         # Inicializar posición OpenGL basada en grid inicial
-        self.x = (self.grid_x - 5.5) * 10.0
-        self.z = (self.grid_y - 5.5) * 10.0
-        self.target_x = self.x
-        self.target_z = self.z
+        self.x, self.z = self.grid_to_opengl(self.grid_x, self.grid_y)
+        self.target_x, self.target_z=self.x, self.z
 
         #self.bound_margin = 8.0
 
@@ -143,7 +141,33 @@ class Ghost:
             self.model.render()
         finally:
             glPopMatrix()
+            
+            
 
+# CLASE LLAVE
+class Key:
+    def __init__(self, x, y):
+        self.model=objloader.OBJ('key.obj')
+        self.model.generate()
+        self.grid_x=x
+        self.grid_y=y
+        self.x, self.z=self.grid_to_opengl(x, y)
+        self.y=3.0
+        self.collected=False
+        
+    def grid_to_opengl(self, grid_x, grid_y):
+        return (grid_x-5.5)*10.0,(grid_y-5.5)*10.0
+    
+    def update(self, collected):
+        self.collected=collected
+        
+    def draw(self):
+        if not self.collected:
+            glPushMatrix()
+            glTranslatef(self.x, self.y, self.z)
+            glScalef(2.0, 2.0, 2.0)
+            self.model.render()
+            glPopMatrix()
 
 # CLASE PERSONAJE
 class Personaje:
@@ -296,6 +320,17 @@ def lookat():
     glLoadIdentity()
     gluLookAt(0, 30, 50, 0, 0, 0, 0, 1, 0)
     
+def get_ghost_from_julia():
+    try:
+        res=requests.get("http://localhost:8000/update", timeout=0.5)
+        data=res.json()
+        if "ghost" in data and data["ghost"]:
+            pos = data["ghosts"][0]
+            return pos[0], pos[1]
+    except Exception as e:
+        print(f"Error conectando con Julia: {e}")
+    return None
+    
 def draw_floor():
     glColor3f(0.3, 0.3, 0.3)
     glBegin(GL_QUADS)
@@ -311,47 +346,19 @@ frame_count = 0
 julia_update_interval = 10  # Consultar Julia cada 10 frames (ajusta según necesites)
 
 def display(dt, is_moving):
-    global frame_count
-    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     lookat()
     Axis()
     draw_floor()
-    
-    # Solo consultar Julia cada cierto número de frames
-    frame_count += 1
-    if frame_count >= julia_update_interval:
-        frame_count = 0
-        try:
-            res = requests.get("http://localhost:8000/run", timeout=0.5)
-            data = res.json()
-            
-            # Actualizar la posición objetivo del ghost
-            if data['agents']:
-                grid_x = data['agents'][0]['pos'][0]
-                grid_y = data['agents'][0]['pos'][1]
-                ghost.set_target_position(grid_x, grid_y)
-        except Exception as e:
-            print(f"Error conectando con Julia: {e}")
-    
-    # Actualizar interpolación del ghost cada frame
+
+    #Consultar nueva posición del fantasma
+    ghost_pos = get_ghost_from_julia()
+    if ghost_pos:
+        grid_x, grid_y = ghost_pos
+        ghost.set_target_position(grid_x, grid_y)
+
     ghost.update(dt)
-    
-    # Solicitar al backend el avanzar la simulación un paso y recuperar posiciones
-    try:
-        res = requests.get("http://localhost:8000/run")
-        data = res.json()
-        
-        # Actualizar ghost con la posición del primer agente
-        if data['agents']:
-            grid_x = data['agents'][0]['pos'][0]
-            grid_y = data['agents'][0]['pos'][1]
-            ghost.set_target_position(grid_x, grid_y)
-    except Exception as e:
-        print(f"Error conectando con Julia: {e}")
-        
     personaje.update(dt, is_moving)
-    #ghost.update(dt)
     ghost.draw()
     personaje.draw()
 
