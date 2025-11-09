@@ -5,16 +5,14 @@ using UUIDs
 route("/run") do
     step!(model, agent_step!, 1)
     #run!(model, 1)
-    agents = []
-    for ghost in allagents(model)
-        push!(agents, Dict(
-            "id" => ghost.id,
-            "pos" => [ghost.pos[1], ghost.pos[2]],
-            "type" => ghost.type
-        ))
-    end
+    
+    ghost=[Tuple(a.pos) for a in allagents(model) if a isa Ghost]
+    key=[Tuple(a.pos) for a in allagents(model) if a isa Key && 1a.collected]
 
-    json(Dict(:msg => "Adios", "agents" => agents))
+    json(Dict(
+        "ghost"=>ghosts,
+        "keys"=>keys
+    ))
 end
 
 Genie.config.run_as_server = true
