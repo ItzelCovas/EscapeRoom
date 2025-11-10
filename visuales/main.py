@@ -319,31 +319,6 @@ class PropEstatico:
         finally:
             glPopMatrix()
 
-# # CLASE LLAVE
-# class Key:
-#     def __init__(self, x, y):
-#         self.model=objloader.OBJ('key.obj')
-#         self.model.generate()
-#         self.grid_x=x
-#         self.grid_y=y
-#         self.x, self.z=self.grid_to_opengl(x, y)
-#         self.y=3.0
-#         self.collected=False
-        
-#     def grid_to_opengl(self, grid_x, grid_y):
-#         return (grid_x-5.5)*10.0,(grid_y-5.5)*10.0
-    
-#     def update(self, collected):
-#         self.collected=collected
-        
-#     def draw(self):
-#         if not self.collected:
-#             glPushMatrix()
-#             glTranslatef(self.x, self.y, self.z)
-#             glScalef(2.0, 2.0, 2.0)
-#             self.model.render()
-#             glPopMatrix()
-
 
 # CLASE KEY
 class Key:
@@ -424,12 +399,13 @@ class Key:
             
         try:
             glPushMatrix()
-            glTranslatef(self.position[0], self.position[1], self.position[2])
+            glTranslatef(self.x, self.y, self.z)
             glRotatef(self.angle_y, 0, 1, 0) # <-- Animación de giro
             # Rotaciones estáticas (si el modelo viene chueco)
-            glRotatef(self.rotation[0], 1, 0, 0)
-            glRotatef(self.rotation[1], 0, 1, 0)
-            glRotatef(self.rotation[2], 0, 0, 1)
+            glRotatef(self.angle_y, 0, 1, 0)
+            # glRotatef(self.rotation[0], 1, 0, 0)
+            # glRotatef(self.rotation[1], 0, 1, 0)
+            # glRotatef(self.rotation[2], 0, 0, 1)
             glScalef(self.scale, self.scale, self.scale)
             
             self.model.render()
@@ -762,11 +738,11 @@ def init_keys_in_julia():
             timeout=2.0
         )
         if res.ok:
-            print(f"✅ Llaves inicializadas en Julia (escondidas): {key_positions}")
+            print(f"Llaves inicializadas en Julia (escondidas): {key_positions}")
         else:
-            print(f"⚠️ Error al inicializar llaves: {res.text}")
+            print(f"Error al inicializar llaves: {res.text}")
     except Exception as e:
-        print(f"❌ Error conectando con Julia: {e}")
+        print(f"Error conectando con Julia: {e}")
         
 def notify_key_revealed(grid_x, grid_y):
     """Notifica a Julia cuando una llave se hace VISIBLE"""
@@ -779,7 +755,7 @@ def notify_key_revealed(grid_x, grid_y):
         if res.ok:
             print(f"🔍 Llave en ({grid_x}, {grid_y}) ahora es VISIBLE en Julia")
     except Exception as e:
-        print(f"⚠️ Error notificando revelación: {e}")
+        print(f"Error notificando revelación: {e}")
 
 def notify_key_collected(grid_x, grid_y):
     """Notifica a Julia cuando se recoge una llave"""
@@ -790,9 +766,9 @@ def notify_key_collected(grid_x, grid_y):
             timeout=1.0
         )
         if res.ok:
-            print(f"✅ Llave en ({grid_x}, {grid_y}) RECOLECTADA en Julia")
+            print(f"Llave en ({grid_x}, {grid_y}) RECOLECTADA en Julia")
     except Exception as e:
-        print(f"⚠️ Error notificando recolección: {e}")
+        print(f"Error notificando recolección: {e}")
 
     
 def draw_floor():
@@ -973,12 +949,12 @@ while not done:
                     if math.sqrt(dist_x**2 + dist_z**2) < 2.5: # Distancia de interaccion
                         if key.is_hidden:
                             key.make_visible() # La revela
-                            # 🔑 NOTIFICAR A JULIA: llave ahora es visible
+                            # NOTIFICAR A JULIA: llave ahora es visible
                             notify_key_revealed(key.grid_x, key.grid_y)
                         elif key.is_visible:
                             if key.collect(): # La recoge
                                 game_state['llaves_recogidas'] += 1
-                                # 🔑 NOTIFICAR A JULIA: llave recolectada
+                                # NOTIFICAR A JULIA: llave recolectada
                                 notify_key_collected(key.grid_x, key.grid_y)
                         interacted_with_key = True
                         break # Interactúa solo con la primera llave que encuentra
@@ -1008,7 +984,7 @@ while not done:
 
     display(dt, is_moving)
     pygame.display.flip()
-    #pygame.time.wait(50)
+    pygame.time.wait(50)
 
 pygame.quit()
 print("Juego terminado.")
