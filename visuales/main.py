@@ -361,7 +361,7 @@ class Key:
             self.model.generate()
             self.position = pos
             self.scale = scale
-            self.angle = 0.0 # Angulo para rotar
+            self.angle_y = 0.0 # Angulo para rotar
             
             #  ESTADO DE LA LLAVE 
             self.is_hidden = True     # Empieza  (invisible)
