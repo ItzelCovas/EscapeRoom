@@ -20,7 +20,7 @@ def reparar_mtl(obj_filename):
     obj_path = os.path.join(script_dir, obj_filename)
 
     if not os.path.exists(obj_path):
-        print(f"⚠️ No se encontró el archivo OBJ en: {obj_path}")
+        print(f"No se encontró el archivo OBJ en: {obj_path}")
         return
 
     # 2️⃣ Buscar el nombre del archivo .mtl dentro del .obj
@@ -32,13 +32,13 @@ def reparar_mtl(obj_filename):
                 break
 
     if not mtl_name:
-        print("⚠️ No se encontró 'mtllib' en el archivo OBJ.")
+        print("No se encontró 'mtllib' en el archivo OBJ.")
         return
 
     # 3️⃣ Ruta absoluta del .mtl
     mtl_path = os.path.join(script_dir, mtl_name)
     if not os.path.exists(mtl_path):
-        print(f"⚠️ No se encontró el archivo MTL en: {mtl_path}")
+        print(f"No se encontró el archivo MTL en: {mtl_path}")
         return
 
     # 4️⃣ Leer y corregir rutas absolutas dentro del .mtl
@@ -53,7 +53,7 @@ def reparar_mtl(obj_filename):
                 tex_path = parts[1].strip().strip('"')
                 if os.path.isabs(tex_path):  # Si tiene una ruta absoluta
                     tex_name = os.path.basename(tex_path)
-                    print(f"🧩 Corrigiendo textura: {tex_path} → {tex_name}")
+                    print(f"Corrigiendo textura: {tex_path} → {tex_name}")
                     fixed_lines.append(f"map_Kd {tex_name}\n")
                     continue
         fixed_lines.append(line)
@@ -62,7 +62,7 @@ def reparar_mtl(obj_filename):
     with open(mtl_path, 'w', encoding='utf-8', errors='ignore') as f:
         f.writelines(fixed_lines)
 
-    print(f"✅ Archivo MTL reparado correctamente: {mtl_path}")
+    print(f"Archivo MTL reparado correctamente: {mtl_path}")
 
 # CLASE GHOST 
 class Ghost:
@@ -753,7 +753,7 @@ def notify_key_revealed(grid_x, grid_y):
             timeout=1.0
         )
         if res.ok:
-            print(f"🔍 Llave en ({grid_x}, {grid_y}) ahora es VISIBLE en Julia")
+            print(f"Llave en ({grid_x}, {grid_y}) ahora es VISIBLE en Julia")
     except Exception as e:
         print(f"Error notificando revelación: {e}")
 
