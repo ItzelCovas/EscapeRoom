@@ -10,14 +10,16 @@ end
 
 #Definicion de la llave
 @agent struct Key(GridAgent{2})
-    collected::Bool 
+    is_hidden::Bool      # Empieza escondida (invisible)
+    is_visible::Bool     # Ha aparecido en el mundo
+    is_collected::Bool   # Ya la tiene el jugador
 end
 
 #Comportamiento del agente
 function agent_step!(agent, model)
     if agent isa Ghost
         #Buscar llaves no recolectadas
-        keys=[k for k in allagents(model) if k isa Key && !k.collected]
+        keys=[k for k in allagents(model) if k isa Key && k.is_visible && !k.is_collected]
 
         if !isempty(keys)
             #Encontrar la llave más cerca
@@ -41,7 +43,7 @@ function agent_step!(agent, model)
 
             #Recolectar la llave
             if agent.pos==target
-                keys[idx].collected=true
+                #keys[idx].collected=true
                 agent.has_key=true
                 @info "Fantasma ha encontrado una llave en $(agent.pos)"
             end
@@ -53,7 +55,7 @@ function agent_step!(agent, model)
 end
 
 #Inicializar modelo
-function initialize_model(; size=(10,10), num_keys=3)
+function initialize_model(; size=(10,10), key_positions=[])
     space = GridSpace(size; periodic = false, metric = :manhattan)
 
     # Crear el modelo con agent_step!
@@ -81,18 +83,16 @@ function initialize_model(; size=(10,10), num_keys=3)
     #Fantasma rastreador
     #add_agent!(Ghost, (1,1), model; type="ghost", has_key=false)
 
-    # Agregar llaves en posiciones aleatorias
-    for i in 1:num_keys
-        placed = false
-        while !placed
-            pos = (rand(1:size[1]), rand(1:size[2]))
-            # Verificar que no haya otro agente en esa posición
-            if isempty(agents_in_position(pos, model))
-                key = Key(i + 1, pos, false)
-                add_agent_pos!(key, model)
-                placed = true
-            end
-        end
+    # Agregar llaves en posiciones específicas (todas empiezan ESCONDIDAS)
+    for (i, pos) in enumerate(key_positions)
+        key = Key(
+            i + 1,           # id
+            pos,             # posición
+            true,            # is_hidden = true (empieza escondida)
+            false,           # is_visible = false
+            false            # is_collected = false
+        )
+        add_agent_pos!(key, model)
     end
 
     return model

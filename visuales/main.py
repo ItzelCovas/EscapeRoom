@@ -352,14 +352,31 @@ class Key:
     Maneja su propio estado (escondida, visible, recogida).
     """
     
-    def __init__(self, model_path, pos=[0,0,0], scale=1.0, rot=[0,0,0]):
+    def __init__(self, model_path, x=None, y=None, pos=None, scale=1.0, rot=[0,0,0]):
         """Constructor. Carga el modelo y define su estado inicial."""
         try:
             # swapyz=True es util si el modelo viene de Blender
             #self.model = objloader.OBJ(model_path, swapyz=True)
             self.model = objloader.OBJ(model_path) 
             self.model.generate()
-            self.position = pos
+            # Si se proporciona 'pos', convertir a coordenadas de grid
+            if pos is not None:
+                # pos = [x_opengl, y_opengl, z_opengl]
+                self.x = pos[0]  # Posición OpenGL directa
+                self.y = pos[1]
+                self.z = pos[2]
+                # Convertir de OpenGL a grid (inversa de grid_to_opengl)
+                self.grid_x = int((self.x / 10.0) + 5.5)
+                self.grid_y = int((self.z / 10.0) + 5.5)
+            # Si se proporcionan x, y (coordenadas de grid)
+            elif x is not None and y is not None:
+                self.grid_x = x
+                self.grid_y = y
+                self.x, self.z = self.grid_to_opengl(x, y)
+                self.y = 3.0
+            else:
+                raise ValueError("Debe proporcionar 'pos' o 'x' y 'y'")
+            #self.collected=False
             self.scale = scale
             self.angle_y = 0.0 # Angulo para rotar
             
@@ -372,6 +389,9 @@ class Key:
             print(f"Error cargando '{model_path}': {e}")
             pygame.quit()
             exit()
+            
+    def grid_to_opengl(self, grid_x, grid_y):
+        return (grid_x-5.5)*10.0,(grid_y-5.5)*10.0
             
     def make_visible(self):
         """El jugador la encontró (usando ESPACIO). La llave aparece."""
@@ -612,6 +632,9 @@ def Init():
     keys_list = [key1, key2, key3]
     game_state['total_llaves'] = len(keys_list)
     
+    # 🔑 AGREGAR ESTO:
+    init_keys_in_julia()  # Sincroniza las llaves con Julia
+    
     
     reparar_mtl('puerta.obj')
     puerta_salida = Puerta('puerta.obj', pos=pos_puerta, scale=1.0)
@@ -722,12 +745,55 @@ def get_ghost_from_julia():
     try:
         res=requests.get("http://localhost:8000/update", timeout=0.5)
         data=res.json()
-        if "ghost" in data and data["ghost"]:
+        if "ghosts" in data and data["ghosts"]:
             pos = data["ghosts"][0]
             return pos[0], pos[1]
     except Exception as e:
         print(f"Error conectando con Julia: {e}")
     return None
+
+def init_keys_in_julia():
+    """Envía las posiciones de las llaves a Julia al inicio del juego"""
+    try:
+        key_positions = [(key.grid_x, key.grid_y) for key in keys_list]
+        res = requests.post(
+            "http://localhost:8000/init_keys",
+            json={"keys": key_positions},
+            timeout=2.0
+        )
+        if res.ok:
+            print(f"✅ Llaves inicializadas en Julia (escondidas): {key_positions}")
+        else:
+            print(f"⚠️ Error al inicializar llaves: {res.text}")
+    except Exception as e:
+        print(f"❌ Error conectando con Julia: {e}")
+        
+def notify_key_revealed(grid_x, grid_y):
+    """Notifica a Julia cuando una llave se hace VISIBLE"""
+    try:
+        res = requests.post(
+            "http://localhost:8000/reveal_key",
+            json={"x": grid_x, "y": grid_y},
+            timeout=1.0
+        )
+        if res.ok:
+            print(f"🔍 Llave en ({grid_x}, {grid_y}) ahora es VISIBLE en Julia")
+    except Exception as e:
+        print(f"⚠️ Error notificando revelación: {e}")
+
+def notify_key_collected(grid_x, grid_y):
+    """Notifica a Julia cuando se recoge una llave"""
+    try:
+        res = requests.post(
+            "http://localhost:8000/collect_key",
+            json={"x": grid_x, "y": grid_y},
+            timeout=1.0
+        )
+        if res.ok:
+            print(f"✅ Llave en ({grid_x}, {grid_y}) RECOLECTADA en Julia")
+    except Exception as e:
+        print(f"⚠️ Error notificando recolección: {e}")
+
     
 def draw_floor():
     glColor3f(0.3, 0.3, 0.3)
@@ -765,7 +831,7 @@ def display(dt, is_moving):
 
     ghost.update(dt)
     personaje.update(dt, is_moving)
-    ghost.update(dt)
+    #ghost.update(dt)
     
     for key in keys_list:
         key.draw()
@@ -864,8 +930,8 @@ while not done:
     for key in keys_list:
         if key.is_collected: continue # Ignora llaves recogidas
             
-        dist_x = personaje.x - key.position[0]
-        dist_z = personaje.z - key.position[2]
+        dist_x = personaje.x - key.x
+        dist_z = personaje.z - key.z
         distancia = math.sqrt(dist_x**2 + dist_z**2)
         
         if distancia < 2.5: # Rango de interaccion
@@ -901,15 +967,19 @@ while not done:
                 for key in keys_list:
                     if key.is_collected: continue
                     
-                    dist_x = personaje.x - key.position[0]
-                    dist_z = personaje.z - key.position[2]
+                    dist_x = personaje.x - key.x
+                    dist_z = personaje.z - key.z
                     
                     if math.sqrt(dist_x**2 + dist_z**2) < 2.5: # Distancia de interaccion
                         if key.is_hidden:
                             key.make_visible() # La revela
+                            # 🔑 NOTIFICAR A JULIA: llave ahora es visible
+                            notify_key_revealed(key.grid_x, key.grid_y)
                         elif key.is_visible:
                             if key.collect(): # La recoge
                                 game_state['llaves_recogidas'] += 1
+                                # 🔑 NOTIFICAR A JULIA: llave recolectada
+                                notify_key_collected(key.grid_x, key.grid_y)
                         interacted_with_key = True
                         break # Interactúa solo con la primera llave que encuentra
                 
