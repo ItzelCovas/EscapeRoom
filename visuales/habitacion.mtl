@@ -9,7 +9,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.094
 Ns 302.500000
@@ -19,7 +19,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.096
 Ns 302.500000
@@ -29,7 +29,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.098
 Ns 302.500000
@@ -39,7 +39,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.103
 Ns 302.500000
@@ -49,7 +49,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.104
 Ns 302.500000
@@ -59,7 +59,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.106
 Ns 302.500000
@@ -69,7 +69,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.108
 Ns 302.500000
@@ -79,7 +79,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.111
 Ns 302.500000
@@ -89,7 +89,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
 
 newmtl texture.122
 Ns 302.500000
@@ -99,4 +99,4 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png

@@ -2,19 +2,45 @@ include("agents.jl")
 using Genie, Genie.Renderer.Json, Genie.Requests, HTTP
 using UUIDs
 
+println("Inicializando modelo...")
 model = initialize_model()
+println("Modelo creado con éxito")
 
-route("/run") do
-    step!(model, 1)
-    #run!(model, 1)
-    
-    ghosts=[Tuple(a.pos) for a in allagents(model) if a isa Ghost]
-    keys=[Tuple(a.pos) for a in allagents(model) if a isa Key && !a.collected]
+# Ruta principal que Python consulta
+route("/update") do
+    try
+        # Avanzar un paso en la simulación
+        step!(model, 1)
+        
+        # Obtener posiciones de fantasmas y llaves
+        ghosts = [Tuple(a.pos) for a in allagents(model) if a isa Ghost]
+        keys = [Tuple(a.pos) for a in allagents(model) if a isa Key && !a.collected]
 
-    json(Dict(
-        "ghost"=>ghosts,
-        "keys"=>keys
-    ))
+        # Retornar JSON
+        json(Dict(
+            "ghosts" => ghosts,
+            "keys" => keys
+        ))
+    catch e
+        @error "Error en /update" exception=e
+        json(Dict("error" => string(e)))
+    end
+end
+
+# Ruta adicional para verificar el estado sin avanzar
+route("/status") do
+    try
+        ghosts = [Tuple(a.pos) for a in allagents(model) if a isa Ghost]
+        keys = [Tuple(a.pos) for a in allagents(model) if a isa Key && !a.collected]
+
+        json(Dict(
+            "ghosts" => ghosts,
+            "keys" => keys
+        ))
+    catch e
+        @error "Error en /status" exception=e
+        json(Dict("error" => string(e)))
+    end
 end
 
 Genie.config.run_as_server = true
