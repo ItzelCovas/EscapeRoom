@@ -745,12 +745,16 @@ def get_ghost_from_julia():
 def init_keys_in_julia():
     """Envía las posiciones de las llaves a Julia al inicio del juego"""
     try:
-        key_positions = [(key.grid_x, key.grid_y) for key in keys_list]
-        print(f"Enviando llaves a Julia: {key_positions}")
+        # 🔑 ENVIAR estado completo: posición + visibilidad
+        key_data = [{
+            "pos": [key.grid_x, key.grid_y],
+            "is_hidden": key.is_hidden,
+            "is_visible": key.is_visible
+        } for key in keys_list]
         
         res = requests.post(
             "http://localhost:8000/init_keys",
-            json={"keys": key_positions},
+            json={"keys": key_data},
             timeout=5.0  # ⬅️ 5 segundos
         )
         if res.ok:
@@ -765,7 +769,7 @@ def init_keys_in_julia():
 def notify_key_revealed(grid_x, grid_y):
     """Notifica a Julia cuando una llave se hace VISIBLE"""
     try:
-        print(f"📤 Revelando llave en Julia: ({grid_x}, {grid_y})")
+        print(f"Revelando llave en Julia: ({grid_x}, {grid_y})")
         res = requests.post(
             "http://localhost:8000/reveal_key",
             json={"x": grid_x, "y": grid_y},
@@ -781,7 +785,7 @@ def notify_key_revealed(grid_x, grid_y):
 def notify_key_collected(grid_x, grid_y):
     """Notifica a Julia cuando se recoge una llave"""
     try:
-        print(f"📤 Recolectando llave en Julia: ({grid_x}, {grid_y})")
+        print(f"Recolectando llave en Julia: ({grid_x}, {grid_y})")
         res = requests.post(
             "http://localhost:8000/collect_key",
             json={"x": grid_x, "y": grid_y},

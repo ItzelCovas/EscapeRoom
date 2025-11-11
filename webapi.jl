@@ -14,14 +14,38 @@ step_interval = 0.05  # Hacer step cada 100ms como máximo
 route("/init_keys", method = POST) do
     try
         payload = jsonpayload()
-        key_positions = payload["keys"]  # Lista de tuplas [(x,y), (x,y), ...]
+        key_data = payload["keys"]  # Lista de diccionarios con pos + estados
         
         # Limpiar modelo actual
         global model
-        model = initialize_model(key_positions=[(Int(k[1]), Int(k[2])) for k in key_positions])
         
-        @info "Llaves inicializadas (escondidas): $key_positions"
-        json(Dict("status" => "ok", "keys" => key_positions))
+        # Convertir datos y crear llaves con sus estados iniciales
+        key_positions = []
+        key_states = []
+        
+        for k in key_data
+            # 🔧 CORRECCIÓN: JSON convierte índices a strings
+            # Acceder con strings y convertir a Int
+            pos_array = k["pos"]
+            pos = (Int(pos_array[1]), Int(pos_array[2]))
+            push!(key_positions, pos)
+            
+            # Acceder a booleanos (estos sí vienen correctos)
+            is_hidden = Bool(k["is_hidden"])
+            is_visible = Bool(k["is_visible"])
+            push!(key_states, (is_hidden, is_visible))
+            
+            estado = is_visible ? "VISIBLE" : "escondida"
+            @info "Procesando llave en $pos - Estado: $estado"
+        end
+        
+        model = initialize_model(
+            key_positions=key_positions, 
+            key_states=key_states
+        )
+        
+        @info "Llaves inicializadas correctamente"
+        json(Dict("status" => "ok", "keys" => key_data))
     catch e
         @error "Error en /init_keys" exception=e
         json(Dict("error" => string(e)))

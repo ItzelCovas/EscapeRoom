@@ -6,6 +6,8 @@ using LinearAlgebra
 @agent struct Ghost(GridAgent{2})
     type::String 
     has_key::Bool
+    guarding_key::Bool
+    target_key_pos::Union{Tuple{Int,Int}, Nothing}
 end
 
 #Definicion de la llave
@@ -36,10 +38,38 @@ function find_nearest_visible_key(ghost_pos, model)
     return nearest_key, min_distance
 end
 
+# 🔍 Función auxiliar: Verificar si la llave vigilada sigue visible
+function is_key_still_there(key_pos, model)
+    """Verifica si la llave en esa posición aún existe y está visible"""
+    for agent in allagents(model)
+        if agent isa Key && agent.pos == key_pos
+            return agent.is_visible && !agent.is_collected
+        end
+    end
+    return false
+end
+
 # Comportamiento del agente
 function agent_step!(agent, model)
     if agent isa Ghost
-        # 🎯 BUSCAR LA LLAVE VISIBLE MÁS CERCANA
+        # 🛡️ MODO 1: Si está vigilando una llave
+        if agent.guarding_key && !isnothing(agent.target_key_pos)
+            # Verificar si la llave sigue ahí
+            if is_key_still_there(agent.target_key_pos, model)
+                @info "Fantasma vigilando llave en $(agent.target_key_pos) desde $(agent.pos)"
+                # NO SE MUEVE - se queda vigilando
+                return
+            else
+                # La llave fue recolectada o desapareció
+                @info "Llave recolectada - Fantasma deja de vigilar"
+                agent.guarding_key = false
+                agent.target_key_pos = nothing
+                agent.has_key = false
+                # Continuar con búsqueda normal
+            end
+        end
+        
+        # 🎯 MODO 2: Buscar la llave visible más cercana
         target_key, distance = find_nearest_visible_key(agent.pos, model)
         
         if !isnothing(target_key)
@@ -47,6 +77,16 @@ function agent_step!(agent, model)
             target_pos = target_key.pos
             
             @info "Fantasma en $(agent.pos) persiguiendo llave en $(target_pos) (distancia: $distance)"
+            
+            # ✅ Verificar si ya llegó a la llave
+            if agent.pos == target_pos
+                # ¡Alcanzó la llave! Activar modo vigilancia
+                agent.has_key = true
+                agent.guarding_key = true
+                agent.target_key_pos = target_pos
+                @info "¡Fantasma alcanzó la llave en $(target_pos)! Ahora la vigila."
+                return  # No se mueve más
+            end
             
             # Calcular dirección óptima (Manhattan)
             dx = target_pos[1] - agent.pos[1]
@@ -68,14 +108,7 @@ function agent_step!(agent, model)
             if 1 <= new_pos[1] <= size[1] && 1 <= new_pos[2] <= size[2]
                 # Mover al fantasma (puede atravesar llaves, no verifica colisión)
                 move_agent!(agent, new_pos, model)
-                @info "Fantasma movido a $(new_pos)"
-            end
-            
-            # Verificar si alcanzó la llave (captura)
-            if agent.pos == target_pos
-                agent.has_key = true
-                target_key.is_collected = true  # Marca la llave como atrapada
-                @info "¡GAME OVER! Fantasma atrapó la llave en $(agent.pos)!"
+                @info "➡️ Fantasma movido a $(new_pos)"
             end
         else
             # No hay llaves visibles, movimiento aleatorio (patrulla)
@@ -108,7 +141,14 @@ function initialize_model(; size=(10,10), key_positions=[])
     # Crear agentes directamente y agregarlos
     #ghost = Ghost(id=nagents(model)+1, pos=(1, 1), type="ghost", has_key=false)
     # Agregar fantasma en posición (5, 5) - centro del tablero
-    ghost = Ghost(1, (5, 5), "ghost", false)
+    ghost = Ghost(
+        1,              # id
+        (5, 5),         # posición inicial
+        "ghost",        # type
+        false,          # has_key
+        false,          # guarding_key ✨
+        nothing         # target_key_pos ✨
+    )
     add_agent_pos!(ghost, model)
     @info "Fantasma creado en posición (5, 5)"
 
