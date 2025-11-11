@@ -15,7 +15,7 @@ os.chdir(os.path.dirname(__file__))
 
 
 def reparar_mtl(obj_filename):
-    # 1️⃣ Obtener la ruta absoluta al archivo .obj
+    # 1️ Obtener la ruta absoluta al archivo .obj
     script_dir = os.path.dirname(os.path.abspath(__file__))
     obj_path = os.path.join(script_dir, obj_filename)
 
@@ -23,7 +23,7 @@ def reparar_mtl(obj_filename):
         print(f"No se encontró el archivo OBJ en: {obj_path}")
         return
 
-    # 2️⃣ Buscar el nombre del archivo .mtl dentro del .obj
+    # 2️ Buscar el nombre del archivo .mtl dentro del .obj
     with open(obj_path, 'r', encoding='utf-8', errors='ignore') as f:
         mtl_name = None
         for line in f:
@@ -35,13 +35,13 @@ def reparar_mtl(obj_filename):
         print("No se encontró 'mtllib' en el archivo OBJ.")
         return
 
-    # 3️⃣ Ruta absoluta del .mtl
+    # 3️ Ruta absoluta del .mtl
     mtl_path = os.path.join(script_dir, mtl_name)
     if not os.path.exists(mtl_path):
         print(f"No se encontró el archivo MTL en: {mtl_path}")
         return
 
-    # 4️⃣ Leer y corregir rutas absolutas dentro del .mtl
+    # 4️ Leer y corregir rutas absolutas dentro del .mtl
     with open(mtl_path, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()
 
@@ -58,7 +58,7 @@ def reparar_mtl(obj_filename):
                     continue
         fixed_lines.append(line)
 
-    # 5️⃣ Guardar el MTL corregido
+    # 5️ Guardar el MTL corregido
     with open(mtl_path, 'w', encoding='utf-8', errors='ignore') as f:
         f.writelines(fixed_lines)
 
@@ -226,7 +226,7 @@ class Personaje:
         self.y = 0.0  # Altura fija sobre el suelo
         self.z = 5.0 # Posicion inicial (cerca de la puerta)
         self.angle_y = 180.0 # Mirando hacia el cuarto
-        self.radius = 0.5 # Radio de colisión
+        self.radius = 1.0 # Radio de colisión
 
         # Variables para la animación de caminar
         self.walk_time = 0.0      # Contador de tiempo (como self.float_time del fantasma)
@@ -608,7 +608,7 @@ def Init():
     keys_list = [key1, key2, key3]
     game_state['total_llaves'] = len(keys_list)
     
-    # 🔑 AGREGAR ESTO:
+    # AGREGAR ESTO:
     init_keys_in_julia()  # Sincroniza las llaves con Julia
     
     
@@ -625,9 +625,9 @@ def Init():
     #  CAJAS DE COLISION ---    
     # --- Paredes ---
     wall_norte = [-10.0, 12.15, 7.8, 9.25]
-    wall_sur = [-8.80, 8.80, -4.80, -4.80]
-    wall_este = [9.50, 9.50, -4.80, 13.20]
-    wall_oeste = [-9.80, -9.80, -4.50, 7.0]
+    wall_sur = [-8.80, 8.80, -4.85, -4.75]
+    wall_este = [9.45, 9.55, -4.80, 13.20]
+    wall_oeste = [-9.85, -9.75, -4.50, 7.0]
     
     # Las paredes se añaden a AMBAS listas (jugador y fantasma)
     collision_boxes.extend([wall_norte, wall_sur, wall_este, wall_oeste])
@@ -635,8 +635,8 @@ def Init():
     
     # --- Props (muebles) ---
     prop_barril = [-9.10, -8.20, -4.0, -2.80]
-    prop_cajas = [9.0, 9.0, -3.60, -2.60]
-    prop_cofre = [9.0, 9.0, -4.80, -4.90] 
+    prop_cajas = [8.95, 9.05, -3.60, -2.60]
+    prop_cofre = [8.95, 9.05, -4.90, -4.80] 
     prop_mesa = [-2.70, -1.20, -1.60, 2.90]
     
     # Los muebles se añaden SÓLO a la lista del jugador
@@ -870,14 +870,14 @@ while not done:
     if controles[pygame.K_UP]: # Moverse ADELANTE
         # Trig: Seno para X, Coseno para Z
         angle_rad = math.radians(personaje.angle_y)
-        personaje.x += math.sin(angle_rad) * move_speed * dt
-        personaje.z += math.cos(angle_rad) * move_speed * dt
+        move_x += math.sin(angle_rad) * move_speed * dt
+        move_z += math.cos(angle_rad) * move_speed * dt
         is_moving = True
         
     if controles[pygame.K_DOWN]: # Moverse ATRÁS
         angle_rad = math.radians(personaje.angle_y)
-        personaje.x -= math.sin(angle_rad) * move_speed * dt
-        personaje.z -= math.cos(angle_rad) * move_speed * dt
+        move_x -= math.sin(angle_rad) * move_speed * dt
+        move_z -= math.cos(angle_rad) * move_speed * dt
         is_moving = True
 
     if controles[pygame.K_LEFT]: # Girar izquierda
