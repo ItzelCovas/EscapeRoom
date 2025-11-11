@@ -6,6 +6,10 @@ println("Inicializando modelo...")
 model = initialize_model()
 println("Modelo creado con éxito")
 
+# Variable para controlar cuándo hacer step
+last_step_time = time()
+step_interval = 0.1  # Hacer step cada 100ms como máximo
+
 # Inicializar/actualizar llaves desde Python
 route("/init_keys", method = POST) do
     try
@@ -16,7 +20,7 @@ route("/init_keys", method = POST) do
         global model
         model = initialize_model(key_positions=[(Int(k[1]), Int(k[2])) for k in key_positions])
         
-        @info "🔑 Llaves inicializadas (escondidas): $key_positions"
+        @info "Llaves inicializadas (escondidas): $key_positions"
         json(Dict("status" => "ok", "keys" => key_positions))
     catch e
         @error "Error en /init_keys" exception=e
@@ -35,7 +39,7 @@ route("/reveal_key", method = POST) do
             if agent isa Key && agent.pos == key_pos && agent.is_hidden
                 agent.is_hidden = false
                 agent.is_visible = true
-                @info "🔍 Llave en $key_pos ahora es VISIBLE (fantasma la perseguirá)"
+                @info "Llave en $key_pos ahora es VISIBLE (fantasma la perseguirá)"
                 break
             end
         end
@@ -73,15 +77,19 @@ end
 # Ruta principal que Python consulta
 route("/update") do
     try
-        # Avanzar un paso en la simulación
-        step!(model, 1)
+        global last_step_time
         
-        # Obtener posiciones de fantasmas y llaves
+        # Solo hacer step si ha pasado suficiente tiempo
+        current_time = time()
+        if current_time - last_step_time >= step_interval
+            step!(model, 1)
+            last_step_time = current_time
+        end
+        
+        # Obtener posiciones RÁPIDAMENTE
         ghosts = [Tuple(a.pos) for a in allagents(model) if a isa Ghost]
-        # SOLO devolver llaves visibles (no escondidas, no recolectadas)
         keys = [Tuple(a.pos) for a in allagents(model) if a isa Key && a.is_visible && !a.is_collected]
 
-        # Retornar JSON
         json(Dict(
             "ghosts" => ghosts,
             "keys" => keys
@@ -92,7 +100,7 @@ route("/update") do
     end
 end
 
-# Ruta adicional para verificar el estado sin avanzar
+# Ruta de status (sin step)
 route("/status") do
     try
         ghosts = [Tuple(a.pos) for a in allagents(model) if a isa Ghost]
@@ -112,10 +120,16 @@ route("/status") do
     end
 end
 
+
 Genie.config.run_as_server = true
 Genie.config.cors_headers["Access-Control-Allow-Origin"] = "*"
 Genie.config.cors_headers["Access-Control-Allow-Headers"] = "Content-Type"
 Genie.config.cors_headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
 Genie.config.cors_allowed_origins = ["*"]
 
+# ⚡ CONFIGURACIÓN DE TIMEOUTS
+#Genie.config.server_timeout = 30
+#Genie.config.server_keepalive_timeout = 30
+
+println("Servidor iniciando en puerto 8000...")
 up(8000, host="0.0.0.0")
