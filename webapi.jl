@@ -8,7 +8,7 @@ println("Modelo creado con éxito")
 
 # Variable para controlar cuándo hacer step
 last_step_time = time()
-step_interval = 0.1  # Hacer step cada 100ms como máximo
+step_interval = 0.05  # Hacer step cada 100ms como máximo
 
 # Inicializar/actualizar llaves desde Python
 route("/init_keys", method = POST) do
@@ -130,6 +130,16 @@ Genie.config.cors_allowed_origins = ["*"]
 # ⚡ CONFIGURACIÓN DE TIMEOUTS
 #Genie.config.server_timeout = 30
 #Genie.config.server_keepalive_timeout = 30
+
+#Genie.config.server_timeout = 60
+
+println("Servidor iniciando en puerto 8000...")
+println("Endpoints disponibles:")
+println("  - GET  http://localhost:8000/update")
+println("  - GET  http://localhost:8000/status")
+println("  - POST http://localhost:8000/init_keys")
+println("  - POST http://localhost:8000/reveal_key")
+println("  - POST http://localhost:8000/collect_key")
 
 println("Servidor iniciando en puerto 8000...")
 up(8000, host="0.0.0.0")

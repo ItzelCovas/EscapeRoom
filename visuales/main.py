@@ -341,15 +341,24 @@ class Key:
                 self.x = pos[0]  # Posición OpenGL directa
                 self.y = pos[1]
                 self.z = pos[2]
-                # Convertir de OpenGL a grid (inversa de grid_to_opengl)
-                self.grid_x = int((self.x / 10.0) + 5.5)
-                self.grid_y = int((self.z / 10.0) + 5.5)
+                
+                # 🔧 CORRECCIÓN: usar round() para redondear correctamente
+                self.grid_x = int(round((self.x / 10.0) + 5.5))
+                self.grid_y = int(round((self.z / 10.0) + 5.5))
+                
+                # # Convertir de OpenGL a grid (inversa de grid_to_opengl)
+                # self.grid_x = int((self.x / 10.0) + 5.5)
+                # self.grid_y = int((self.z / 10.0) + 5.5)
+                
+                # 🐛 DEBUG: Verificar conversión
+                print(f"Llave creada: OpenGL({self.x:.1f}, {self.y:.1f}, {self.z:.1f}) -> Grid({self.grid_x}, {self.grid_y})")
             # Si se proporcionan x, y (coordenadas de grid)
             elif x is not None and y is not None:
                 self.grid_x = x
                 self.grid_y = y
                 self.x, self.z = self.grid_to_opengl(x, y)
-                self.y = 3.0
+                self.y = 3.
+                print(f"Llave creada: Grid({x}, {y}) -> OpenGL({self.x:.1f}, {self.y:.1f}, {self.z:.1f})")
             else:
                 raise ValueError("Debe proporcionar 'pos' o 'x' y 'y'")
             #self.collected=False
@@ -367,7 +376,7 @@ class Key:
             exit()
             
     def grid_to_opengl(self, grid_x, grid_y):
-        return (grid_x-5.5)*10.0,(grid_y-5.5)*10.0
+        return (grid_x-5.5)*10.0, (grid_y-5.5)*10.0
             
     def make_visible(self):
         """El jugador la encontró (usando ESPACIO). La llave aparece."""
@@ -714,57 +723,76 @@ def draw_text(text, x, y, color=(255, 255, 255)):
     glDeleteTextures(1, [texid]) 
     
 def get_ghost_from_julia():
+    """Consulta la posición del fantasma desde Julia"""
     try:
-        res=requests.get("http://localhost:8000/update", timeout=2.0)
-        data=res.json()
-        if "ghosts" in data and data["ghosts"]:
-            pos = data["ghosts"][0]
-            return pos[0], pos[1]
+        res = requests.get("http://localhost:8000/update", timeout=5.0)  # ⬅️ 5 segundos
+        if res.ok:
+            data = res.json()
+            
+            # 🐛 DEBUG: Ver qué llaves ve Julia
+            if "keys" in data and data["keys"]:
+                print(f"Llaves visibles en Julia: {data['keys']}")
+            
+            if "ghosts" in data and data["ghosts"]:
+                pos = data["ghosts"][0]
+                return pos[0], pos[1]
+    except requests.exceptions.Timeout:
+        print("Timeout al conectar con Julia")
     except Exception as e:
-        print(f"Error conectando con Julia: {e}")
+        print(f"Error: {e}")
     return None
 
 def init_keys_in_julia():
     """Envía las posiciones de las llaves a Julia al inicio del juego"""
     try:
         key_positions = [(key.grid_x, key.grid_y) for key in keys_list]
+        print(f"Enviando llaves a Julia: {key_positions}")
+        
         res = requests.post(
             "http://localhost:8000/init_keys",
             json={"keys": key_positions},
-            timeout=2.0
+            timeout=5.0  # ⬅️ 5 segundos
         )
         if res.ok:
-            print(f"Llaves inicializadas en Julia (escondidas): {key_positions}")
+            print(f"Llaves inicializadas en Julia")
         else:
-            print(f"Error al inicializar llaves: {res.text}")
+            print(f"Error: {res.text}")
+    except requests.exceptions.Timeout:
+        print("Timeout al inicializar llaves")
     except Exception as e:
-        print(f"Error conectando con Julia: {e}")
+        print(f"Error: {e}")
         
 def notify_key_revealed(grid_x, grid_y):
     """Notifica a Julia cuando una llave se hace VISIBLE"""
     try:
+        print(f"📤 Revelando llave en Julia: ({grid_x}, {grid_y})")
         res = requests.post(
             "http://localhost:8000/reveal_key",
             json={"x": grid_x, "y": grid_y},
-            timeout=1.0
+            timeout=3.0  # ⬅️ 3 segundos
         )
         if res.ok:
-            print(f"Llave en ({grid_x}, {grid_y}) ahora es VISIBLE en Julia")
+            print(f"Llave ({grid_x}, {grid_y}) ahora VISIBLE en Julia")
+    except requests.exceptions.Timeout:
+        print(f"Timeout al revelar llave")
     except Exception as e:
-        print(f"Error notificando revelación: {e}")
+        print(f"Error: {e}")
 
 def notify_key_collected(grid_x, grid_y):
     """Notifica a Julia cuando se recoge una llave"""
     try:
+        print(f"📤 Recolectando llave en Julia: ({grid_x}, {grid_y})")
         res = requests.post(
             "http://localhost:8000/collect_key",
             json={"x": grid_x, "y": grid_y},
-            timeout=1.0
+            timeout=3.0  # ⬅️ 3 segundos
         )
         if res.ok:
-            print(f"Llave en ({grid_x}, {grid_y}) RECOLECTADA en Julia")
+            print(f"Llave ({grid_x}, {grid_y}) RECOLECTADA en Julia")
+    except requests.exceptions.Timeout:
+        print(f"Timeout al recolectar llave")
     except Exception as e:
-        print(f"Error notificando recolección: {e}")
+        print(f"Error: {e}")
 
     
 def draw_floor():
@@ -782,6 +810,8 @@ frame_count = 0
 julia_update_interval = 10  # Consultar Julia cada 10 frames (ajusta según necesites)
 
 def display(dt, is_moving):
+    global frame_count
+    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     lookat()
     #Axis()
@@ -795,11 +825,13 @@ def display(dt, is_moving):
         
     puerta_salida.draw()
 
-    #Consultar nueva posición del fantasma
-    ghost_pos = get_ghost_from_julia()
-    if ghost_pos:
-        grid_x, grid_y = ghost_pos
-        ghost.set_target_position(grid_x, grid_y)
+    # ⚡ OPTIMIZACIÓN: Solo consultar Julia cada 5 frames (reduce carga)
+    frame_count += 1
+    if frame_count % 5 == 0:  # ⬅️ Consultar cada 5 frames (~12 veces por segundo)
+        ghost_pos = get_ghost_from_julia()
+        if ghost_pos:
+            grid_x, grid_y = ghost_pos
+            ghost.set_target_position(grid_x, grid_y)
 
     ghost.update(dt)
     personaje.update(dt, is_moving)
