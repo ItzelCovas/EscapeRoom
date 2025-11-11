@@ -68,138 +68,75 @@ def reparar_mtl(obj_filename):
 # CLASE GHOST 
 class Ghost:
     def __init__(self, plane_size=100):
-        """
-        Constructor del Fantasma. Se llama al crear un 'new Ghost()'.
-        """
-        
-        self.model = objloader.OBJ('ghost_low.obj')
-        self.model.generate()
+        self.model = objloader.OBJ('ghost_low.obj'); self.model.generate()
+        self.x = 0.0; self.y = 1.0; self.z = 0.0
+        self.angle_y = 0.0
 
-        # Posición actual en OpenGL
-        self.x = 0.0
-        self.y = 1.0
-        self.z = 0.0
-        self.angle_y = 0.0 # Rotacion inicial
-        
-        # Posición actual del grid (Julia)
-        self.grid_x = 5
-        self.grid_y = 5
-        
-        # Posición objetivo del grid (Julia)
-        self.target_grid_x = 5
-        self.target_grid_y = 5
-        
-        # Posición objetivo en OpenGL
-        self.target_x = 0.0
-        self.target_z = 0.0
-        
-        # Velocidad de interpolación (unidades OpenGL por frame)
+        # grid (1..10)
+        self.grid_x = 5; self.grid_y = 5
+        self.target_grid_x = 5; self.target_grid_y = 5
+
+        # objetivo world
+        self.target_x = 0.0; self.target_z = 0.0
+
+        # >> importante: velocidad en unidades/seg, no por frame
         self.interpolation_speed = 5.0
-        
-        #self.min_val = -plane_size / 2
-        #self.max_val = plane_size / 2
-        
-        #self.x = random.uniform(self.min_val, self.max_val)
-        #self.y = 5.0
-        #self.z = random.uniform(self.min_val, self.max_val)
-        
-        #self.speed = 8.0         
-        #self.target_x = 0
-        #self.target_z = 0
-        #self.get_new_random_target()
-        
-        # Variables para el efecto de flotación 
-        self.float_time = random.uniform(0, 10) # Tiempo para la onda seno
-        self.float_amplitude = 1.0  # Qué tanto sube y baja
-        self.float_speed = 2.0      # Qué tan rápido lo hace
-        self.base_y = self.y        # Altura base sobre la que flota
-        #self.radius = 0.5 # Radio de colisión (para chocar)
 
-        
-        # Inicializar posición OpenGL basada en grid inicial
+        self.float_time = random.uniform(0, 10)
+        self.float_amplitude = 1.0
+        self.float_speed = 2.0
+        self.base_y = self.y
+
+        # iniciar en el centro del grid
         self.x, self.z = self.grid_to_opengl(self.grid_x, self.grid_y)
-        self.target_x, self.target_z=self.x, self.z
-
-        #self.bound_margin = 8.0
-
-    # def get_new_random_target(self):
-    #     self.target_x = random.uniform(self.min_val, self.max_val)
-    #     self.target_z = random.uniform(self.min_val, self.max_val)
+        self.target_x, self.target_z = self.x, self.z
 
     def grid_to_opengl(self, grid_x, grid_y):
-        """Convierte coordenadas del grid de Julia (1-10) a OpenGL"""
-        opengl_x = (grid_x - 5.5) * 10.0
-        opengl_z = (grid_y - 5.5) * 10.0
-        return opengl_x, opengl_z
+        return (grid_x - 5.5) * 10.0, (grid_y - 5.5) * 10.0
 
     def set_target_position(self, grid_x, grid_y):
-        """Establece nueva posición objetivo desde el grid de Julia"""
-        if grid_x != self.target_grid_x or grid_y != self.target_grid_y:
-            self.target_grid_x = grid_x
-            self.target_grid_y = grid_y
-            self.target_x, self.target_z = self.grid_to_opengl(grid_x, grid_y)
-            
+        # porqué: Julia/HTTP puede mandar fuera de rango; prevenimos objetivos inválidos
+        gx = max(1, min(10, int(grid_x)))
+        gy = max(1, min(10, int(grid_y)))
+        self.target_grid_x, self.target_grid_y = gx, gy
+        self.target_x, self.target_z = self.grid_to_opengl(gx, gy)
+
+    def _clamp_in_room(self):
+        clamped_x = max(ROOM_X_MIN, min(self.x, ROOM_X_MAX))
+        clamped_z = max(ROOM_Z_MIN, min(self.z, ROOM_Z_MAX))
+        if clamped_x != self.x or clamped_z != self.z:
+            # porqué: si chocamos con el límite, también ajustamos el objetivo para no “empujar” fuera
+            self.x, self.z = clamped_x, clamped_z
+            self.target_x = max(ROOM_X_MIN, min(self.target_x, ROOM_X_MAX))
+            self.target_z = max(ROOM_Z_MIN, min(self.target_z, ROOM_Z_MAX))
+
     def update(self, dt):
-        """Actualiza la posición con interpolación suave"""
-        # Calcular distancia al objetivo
+        # ---- FIX PRINCIPAL: usar dt en la interpolación ----
         dx = self.target_x - self.x
         dz = self.target_z - self.z
-        distance = math.sqrt(dx**2 + dz**2)
-        
-        # Si estamos cerca del objetivo, ajustar directamente
-        if distance < self.interpolation_speed:
-            self.x = self.target_x
-            self.z = self.target_z
-            self.grid_x = self.target_grid_x
-            self.grid_y = self.target_grid_y
-        elif distance > 0:
-            # Interpolar hacia el objetivo
-            # Normalizar dirección y mover
-            norm_dx = dx / distance
-            norm_dz = dz / distance
-            self.x += norm_dx * self.interpolation_speed
-            self.z += norm_dz * self.interpolation_speed
-        
-        # """Actualiza posición desde coordenadas del grid de Julia (1-10)"""
-        # # Convertir grid 10x10 a coordenadas OpenGL
-        # # Grid 1-10 -> OpenGL -45 a 45 (escalado para que quepa en el tablero de 100x100)
-        # self.x = (grid_x - 5.5) * 10.0
-        # self.z = (grid_y - 5.5) * 10.0
+        dist = math.hypot(dx, dz)
+        step = self.interpolation_speed * max(0.0, dt)
 
-        # dir_x = self.target_x - self.x
-        # dir_z = self.target_z - self.z
-        # distance = math.sqrt(dir_x**2 + dir_z**2)
-        
-        # if distance < 5.0:
-        #     self.get_new_random_target()
-        # else:
-        #     norm_x = dir_x / max(distance, 1e-6)
-        #     norm_z = dir_z / max(distance, 1e-6)
-        #     self.x += norm_x * self.speed * dt
-        #     self.z += norm_z * self.speed * dt
+        if dist <= step or dist == 0.0:
+            self.x, self.z = self.target_x, self.target_z
+            self.grid_x, self.grid_y = self.target_grid_x, self.target_grid_y
+        else:
+            self.x += (dx / dist) * step
+            self.z += (dz / dist) * step
 
-        # ! REGRESAR A ESTO DESPUES PATA QYE EL FANTASMA ROTE
-        # 6. Rotacion suave (mira hacia donde se mueve)
-        #target_angle = math.degrees(math.atan2(norm_x, norm_z)) # Ángulo objetivo
-        #self.angle_y += (target_angle - self.angle_y) * 0.1 # Se acerca 10% al ángulo
+        # límites del cuarto
+        self._clamp_in_room()
 
-        # 7. Flotacion (usando una onda seno)
+        # flotación visual
         self.float_time += dt
         self.y = self.base_y + math.sin(self.float_time * self.float_speed) * self.float_amplitude
 
-        # # confinamiento dentro del plano
-        # prev_x, prev_z = self.x, self.z
-        # self.x = max(self.min_val + self.bound_margin, min(self.x, self.max_val - self.bound_margin))
-        # self.z = max(self.min_val + self.bound_margin, min(self.z, self.max_val - self.bound_margin))
-        # if (self.x != prev_x) or (self.z != prev_z):
-        #     self.get_new_random_target()
-
     def draw(self):
+        glPushMatrix()
         try:
-            glPushMatrix()
             glTranslatef(self.x, self.y, self.z)
             glRotatef(self.angle_y, 0.0, 1.0, 0.0)
-            glScalef(0.3, 0.3, 0.3)  
+            glScalef(0.3, 0.3, 0.3)
             self.model.render()
         finally:
             glPopMatrix()
@@ -341,24 +278,15 @@ class Key:
                 self.x = pos[0]  # Posición OpenGL directa
                 self.y = pos[1]
                 self.z = pos[2]
-                
-                # 🔧 CORRECCIÓN: usar round() para redondear correctamente
-                self.grid_x = int(round((self.x / 10.0) + 5.5))
-                self.grid_y = int(round((self.z / 10.0) + 5.5))
-                
-                # # Convertir de OpenGL a grid (inversa de grid_to_opengl)
-                # self.grid_x = int((self.x / 10.0) + 5.5)
-                # self.grid_y = int((self.z / 10.0) + 5.5)
-                
-                # 🐛 DEBUG: Verificar conversión
-                print(f"Llave creada: OpenGL({self.x:.1f}, {self.y:.1f}, {self.z:.1f}) -> Grid({self.grid_x}, {self.grid_y})")
+                # Convertir de OpenGL a grid (inversa de grid_to_opengl)
+                self.grid_x = int((self.x / 10.0) + 5.5)
+                self.grid_y = int((self.z / 10.0) + 5.5)
             # Si se proporcionan x, y (coordenadas de grid)
             elif x is not None and y is not None:
                 self.grid_x = x
                 self.grid_y = y
                 self.x, self.z = self.grid_to_opengl(x, y)
-                self.y = 3.
-                print(f"Llave creada: Grid({x}, {y}) -> OpenGL({self.x:.1f}, {self.y:.1f}, {self.z:.1f})")
+                self.y = 3.0
             else:
                 raise ValueError("Debe proporcionar 'pos' o 'x' y 'y'")
             #self.collected=False
@@ -376,7 +304,7 @@ class Key:
             exit()
             
     def grid_to_opengl(self, grid_x, grid_y):
-        return (grid_x-5.5)*10.0, (grid_y-5.5)*10.0
+        return (grid_x-5.5)*10.0,(grid_y-5.5)*10.0
             
     def make_visible(self):
         """El jugador la encontró (usando ESPACIO). La llave aparece."""
@@ -402,22 +330,13 @@ class Key:
                 self.angle_y -= 360
 
     def draw(self):
-        """Dibuja la llave SÓLO si es visible."""
-        if not self.is_visible: 
-            # Si no es visible (o ya se recogio), no la dibujes
+        if not self.is_visible:
             return
-            
+        glPushMatrix()
         try:
-            glPushMatrix()
             glTranslatef(self.x, self.y, self.z)
-            glRotatef(self.angle_y, 0, 1, 0) # <-- Animación de giro
-            # Rotaciones estáticas (si el modelo viene chueco)
-            glRotatef(self.angle_y, 0, 1, 0)
-            # glRotatef(self.rotation[0], 1, 0, 0)
-            # glRotatef(self.rotation[1], 0, 1, 0)
-            # glRotatef(self.rotation[2], 0, 0, 1)
+            glRotatef(self.angle_y, 0, 1, 0)  # solo una rotación
             glScalef(self.scale, self.scale, self.scale)
-            
             self.model.render()
         finally:
             glPopMatrix()
@@ -484,6 +403,9 @@ class Puerta(PropEstatico):
 # CONFIGURACION GLOBAL
 screen_width = 1050
 screen_height = 800
+
+ROOM_X_MIN, ROOM_X_MAX = -10.0, 12.2
+ROOM_Z_MIN, ROOM_Z_MAX = -5.0, 13.3
 
 FOVY = 75.0  # Field of View (Ángulo de visión de la cámara, en grados)
 ZNEAR = 0.1 # Qué tan cerca se empieza a dibujar
@@ -629,10 +551,10 @@ def Init():
     
     #  CAJAS DE COLISION ---    
     # --- Paredes ---
-    wall_norte = [-11.0, 11.0, 9.5, 10.5]
-    wall_sur = [-11.0, 11.0, -6.5, -5.5]
-    wall_este = [10.5, 11.5, -6.5, 10.5]
-    wall_oeste = [-11.5, -10.5, -6.5, 10.5]
+    wall_norte = [-10.0, 12.15, 7.8, 9.25]
+    wall_sur = [-8.80, 8.80, -4.85, -4.75]
+    wall_este = [9.45, 9.55, -4.80, 13.20]
+    wall_oeste = [-9.85, -9.75, -4.50, 7.0]
     
     # Las paredes se añaden a AMBAS listas (jugador y fantasma)
     collision_boxes.extend([wall_norte, wall_sur, wall_este, wall_oeste])
@@ -640,8 +562,8 @@ def Init():
     
     # --- Props (muebles) ---
     prop_barril = [-9.10, -8.20, -4.0, -2.80]
-    prop_cajas = [8.8, 9.2, -3.60, -2.60]
-    prop_cofre = [8.8, 9.2, -4.90, -4.80] 
+    prop_cajas = [8.95, 9.05, -3.60, -2.60]
+    prop_cofre = [8.95, 9.05, -4.90, -4.80] 
     prop_mesa = [-2.70, -1.20, -1.60, 2.90]
     
     # Los muebles se añaden SÓLO a la lista del jugador
@@ -723,80 +645,57 @@ def draw_text(text, x, y, color=(255, 255, 255)):
     glDeleteTextures(1, [texid]) 
     
 def get_ghost_from_julia():
-    """Consulta la posición del fantasma desde Julia"""
     try:
-        res = requests.get("http://localhost:8000/update", timeout=5.0)  # ⬅️ 5 segundos
-        if res.ok:
-            data = res.json()
-            
-            # 🐛 DEBUG: Ver qué llaves ve Julia
-            if "keys" in data and data["keys"]:
-                print(f"Llaves visibles en Julia: {data['keys']}")
-            
-            if "ghosts" in data and data["ghosts"]:
-                pos = data["ghosts"][0]
-                return pos[0], pos[1]
-    except requests.exceptions.Timeout:
-        print("Timeout al conectar con Julia")
+        res=requests.get("http://localhost:8000/update", timeout=2.0)
+        data=res.json()
+        if "ghosts" in data and data["ghosts"]:
+            pos = data["ghosts"][0]
+            return pos[0], pos[1]
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error conectando con Julia: {e}")
     return None
 
 def init_keys_in_julia():
     """Envía las posiciones de las llaves a Julia al inicio del juego"""
     try:
-        # 🔑 ENVIAR estado completo: posición + visibilidad
-        key_data = [{
-            "pos": [key.grid_x, key.grid_y],
-            "is_hidden": key.is_hidden,
-            "is_visible": key.is_visible
-        } for key in keys_list]
-        
+        key_positions = [(key.grid_x, key.grid_y) for key in keys_list]
         res = requests.post(
             "http://localhost:8000/init_keys",
-            json={"keys": key_data},
-            timeout=5.0  # ⬅️ 5 segundos
+            json={"keys": key_positions},
+            timeout=2.0
         )
         if res.ok:
-            print(f"Llaves inicializadas en Julia")
+            print(f"Llaves inicializadas en Julia (escondidas): {key_positions}")
         else:
-            print(f"Error: {res.text}")
-    except requests.exceptions.Timeout:
-        print("Timeout al inicializar llaves")
+            print(f"Error al inicializar llaves: {res.text}")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error conectando con Julia: {e}")
         
 def notify_key_revealed(grid_x, grid_y):
     """Notifica a Julia cuando una llave se hace VISIBLE"""
     try:
-        print(f"Revelando llave en Julia: ({grid_x}, {grid_y})")
         res = requests.post(
             "http://localhost:8000/reveal_key",
             json={"x": grid_x, "y": grid_y},
-            timeout=3.0  # ⬅️ 3 segundos
+            timeout=1.0
         )
         if res.ok:
-            print(f"Llave ({grid_x}, {grid_y}) ahora VISIBLE en Julia")
-    except requests.exceptions.Timeout:
-        print(f"Timeout al revelar llave")
+            print(f"Llave en ({grid_x}, {grid_y}) ahora es VISIBLE en Julia")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error notificando revelación: {e}")
 
 def notify_key_collected(grid_x, grid_y):
     """Notifica a Julia cuando se recoge una llave"""
     try:
-        print(f"Recolectando llave en Julia: ({grid_x}, {grid_y})")
         res = requests.post(
             "http://localhost:8000/collect_key",
             json={"x": grid_x, "y": grid_y},
-            timeout=3.0  # ⬅️ 3 segundos
+            timeout=1.0
         )
         if res.ok:
-            print(f"Llave ({grid_x}, {grid_y}) RECOLECTADA en Julia")
-    except requests.exceptions.Timeout:
-        print(f"Timeout al recolectar llave")
+            print(f"Llave en ({grid_x}, {grid_y}) RECOLECTADA en Julia")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error notificando recolección: {e}")
 
     
 def draw_floor():
@@ -815,23 +714,17 @@ julia_update_interval = 10  # Consultar Julia cada 10 frames (ajusta según nece
 
 def display(dt, is_moving):
     global frame_count
-    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     lookat()
-    #Axis()
-    #draw_floor()
-    
+
     escenario.draw()
     decoracion.draw()
-    
-    for prop in props_escondite:
-        prop.draw()
-        
+    for prop in props_escondite: prop.draw()
     puerta_salida.draw()
 
-    # ⚡ OPTIMIZACIÓN: Solo consultar Julia cada 5 frames (reduce carga)
+    # ---- Throttle: consulta a Julia cada N frames ----
     frame_count += 1
-    if frame_count % 5 == 0:  # ⬅️ Consultar cada 5 frames (~12 veces por segundo)
+    if frame_count % julia_update_interval == 0:
         ghost_pos = get_ghost_from_julia()
         if ghost_pos:
             grid_x, grid_y = ghost_pos
@@ -839,14 +732,8 @@ def display(dt, is_moving):
 
     ghost.update(dt)
     personaje.update(dt, is_moving)
-    #ghost.update(dt)
-    
-    for key in keys_list:
-        key.draw()
-    
-    # for key in keys_list:
-    #     key.update(dt)
-        
+
+    for key in keys_list: key.draw()
     ghost.draw()
     personaje.draw()
     

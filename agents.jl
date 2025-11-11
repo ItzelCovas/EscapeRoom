@@ -2,173 +2,115 @@ using Agents
 using Random
 using LinearAlgebra
 
-#Definicion del agente
+# ========== Agentes ==========
 @agent struct Ghost(GridAgent{2})
-    type::String 
+    type::String
     has_key::Bool
-    guarding_key::Bool
-    target_key_pos::Union{Tuple{Int,Int}, Nothing}
 end
 
-#Definicion de la llave
 @agent struct Key(GridAgent{2})
-    is_hidden::Bool      # Empieza escondida (invisible)
-    is_visible::Bool     # Ha aparecido en el mundo
-    is_collected::Bool   # Ya la tiene el jugador
+    is_hidden::Bool     # Empieza escondida (no visible)
+    is_visible::Bool    # Aparece en el mundo
+    is_collected::Bool  # Ya la tomó el jugador
 end
 
-# 🔍 Función auxiliar: Buscar llaves visibles en todo el mapa
-function find_nearest_visible_key(ghost_pos, model)
-    """Encuentra la llave visible más cercana al fantasma"""
-    nearest_key = nothing
-    min_distance = Inf
-    
+# ========== Util: buscar una (única) llave visible dentro de un radio ==========
+function search_in_radius(center_pos::NTuple{2,Int}, radius::Real, model)
     for agent in allagents(model)
         if agent isa Key && agent.is_visible && !agent.is_collected
-            # Calcular distancia Manhattan (más eficiente para grids)
-            distance = abs(ghost_pos[1] - agent.pos[1]) + abs(ghost_pos[2] - agent.pos[2])
-            
-            if distance < min_distance
-                min_distance = distance
-                nearest_key = agent
+            # distancia Euclídea en la grilla
+            distance = sqrt(sum((center_pos .- agent.pos).^2))
+            if distance <= radius
+                return (agent, distance)
             end
         end
     end
-    
-    return nearest_key, min_distance
+    return nothing
 end
 
-# 🔍 Función auxiliar: Verificar si la llave vigilada sigue visible
-function is_key_still_there(key_pos, model)
-    """Verifica si la llave en esa posición aún existe y está visible"""
-    for agent in allagents(model)
-        if agent isa Key && agent.pos == key_pos
-            return agent.is_visible && !agent.is_collected
-        end
-    end
-    return false
-end
-
-# Comportamiento del agente
+# ========== Comportamiento del fantasma ==========
 function agent_step!(agent, model)
     if agent isa Ghost
-        # 🛡️ MODO 1: Si está vigilando una llave
-        if agent.guarding_key && !isnothing(agent.target_key_pos)
-            # Verificar si la llave sigue ahí
-            if is_key_still_there(agent.target_key_pos, model)
-                @info "Fantasma vigilando llave en $(agent.target_key_pos) desde $(agent.pos)"
-                # NO SE MUEVE - se queda vigilando
-                return
-            else
-                # La llave fue recolectada o desapareció
-                @info "Llave recolectada - Fantasma deja de vigilar"
-                agent.guarding_key = false
-                agent.target_key_pos = nothing
-                agent.has_key = false
-                # Continuar con búsqueda normal
+        # --- BÚSQUEDA EN CÍRCULOS CONCÉNTRICOS ---
+        max_search_radius = 15.0
+        search_step = 2.0
+
+        target_key = nothing
+        target_pos = nothing
+        found_distance = nothing
+
+        for radius in 1.0:search_step:max_search_radius
+            result = search_in_radius(agent.pos, radius, model)
+            if !isnothing(result)
+                target_key, distance = result
+                target_pos = target_key.pos
+                found_distance = distance
+                @debug "👻 Fantasma detectó llave en $(target_pos) (r=$radius, d=$(round(distance,digits=2)))"
+                break
             end
         end
-        
-        # 🎯 MODO 2: Buscar la llave visible más cercana
-        target_key, distance = find_nearest_visible_key(agent.pos, model)
-        
-        if !isnothing(target_key)
-            # Hay una llave visible -> perseguirla
-            target_pos = target_key.pos
-            
-            @info "Fantasma en $(agent.pos) persiguiendo llave en $(target_pos) (distancia: $distance)"
-            
-            # ✅ Verificar si ya llegó a la llave
-            if agent.pos == target_pos
-                # ¡Alcanzó la llave! Activar modo vigilancia
-                agent.has_key = true
-                agent.guarding_key = true
-                agent.target_key_pos = target_pos
-                @info "¡Fantasma alcanzó la llave en $(target_pos)! Ahora la vigila."
-                return  # No se mueve más
-            end
-            
-            # Calcular dirección óptima (Manhattan)
-            dx = target_pos[1] - agent.pos[1]
-            dy = target_pos[2] - agent.pos[2]
-            
-            # Moverse primero en el eje con mayor diferencia
-            if abs(dx) > abs(dy)
-                # Moverse en X primero
-                new_x = agent.pos[1] + sign(dx)
-                new_pos = (new_x, agent.pos[2])
-            else
-                # Moverse en Y primero
-                new_y = agent.pos[2] + sign(dy)
-                new_pos = (agent.pos[1], new_y)
-            end
-            
-            # Verificar límites del espacio
+
+        if !isnothing(target_pos)
+            # --- Moverse 8-direcciones hacia la llave ---
+            dx = sign(target_pos[1] - agent.pos[1])
+            dy = sign(target_pos[2] - agent.pos[2])
+            new_pos = (agent.pos[1] + dx, agent.pos[2] + dy)
+
             size = Agents.spacesize(model)
             if 1 <= new_pos[1] <= size[1] && 1 <= new_pos[2] <= size[2]
-                # Mover al fantasma (puede atravesar llaves, no verifica colisión)
-                move_agent!(agent, new_pos, model)
-                @info "➡️ Fantasma movido a $(new_pos)"
+                if isempty(agents_in_position(new_pos, model))
+                    move_agent!(agent, new_pos, model)
+                end
+            end
+
+            if agent.pos == target_pos
+                agent.has_key = true
+                @info "👻 Fantasma atrapó la llave en $(agent.pos)!"
             end
         else
-            # No hay llaves visibles, movimiento aleatorio (patrulla)
-            @info "Fantasma patrullando (no hay llaves visibles)"
+            # Patrulla aleatoria (random walk con límites)
             randomwalk!(agent, model)
         end
     end
 end
 
-#Inicializar modelo
+# ========== Inicializar modelo ==========
 function initialize_model(; size=(10,10), key_positions=[])
-    space = GridSpace(size; periodic = false, metric = :manhattan)
+    space = GridSpace(size; periodic=false, metric = manhattan)
 
-    # Crear el modelo con agent_step!
     model = StandardABM(
-        Union{Ghost, Key}, 
-        space; 
+        Union{Ghost, Key},
+        space;
         agent_step! = agent_step!,
         scheduler = Schedulers.Randomly()
     )
 
-    #model = ABM(Union{Ghost, Key}, space; scheduler=Schedulers.Randomly)
-
-    # CORRECCIÓN: add_agent! ahora usa la posición directamente
-    #add_agent!((1, 1), Ghost, model; type="ghost", has_key=false)
-
-    # CORRECCIÓN: (Tipo, model; kwargs...) sin especificar posición, se asigna automáticamente
-    # O especificar posición: add_agent!(model, Tipo; pos=(x,y), kwargs...)
-   
-    # Crear agentes directamente y agregarlos
-    #ghost = Ghost(id=nagents(model)+1, pos=(1, 1), type="ghost", has_key=false)
-    # Agregar fantasma en posición (5, 5) - centro del tablero
-    ghost = Ghost(
-        1,              # id
-        (5, 5),         # posición inicial
-        "ghost",        # type
-        false,          # has_key
-        false,          # guarding_key ✨
-        nothing         # target_key_pos ✨
-    )
+    # Fantasma al centro
+    ghost = Ghost(1, (5, 5), "ghost", false)
     add_agent_pos!(ghost, model)
-    @info "Fantasma creado en posición (5, 5)"
 
-    #Fantasma rastreador
-    #add_agent!(Ghost, (1,1), model; type="ghost", has_key=false)
-
-    # Agregar llaves en posiciones específicas (todas empiezan ESCONDIDAS)
+    # Llaves (todas empiezan ESCONDIDAS)
     for (i, pos) in enumerate(key_positions)
         key = Key(
-            i + 1,           # id
-            pos,             # posición
-            true,            # is_hidden = true (empieza escondida)
-            false,           # is_visible = false
-            false            # is_collected = false
+            i + 1,
+            pos,
+            true,   # is_hidden
+            false,  # is_visible
+            false,  # is_collected
         )
         add_agent_pos!(key, model)
-        @info "Llave $i creada en posición $pos (escondida)"
     end
 
     return model
 end
 
-#model = initialize_model()
+# Random walk respetando límites (8 dirs)
+function randomwalk!(a::Ghost, model)
+    dirs = (-1:1) .+ 0
+    dx, dy = rand(dirs), rand(dirs)
+    new_pos = (clamp(a.pos[1] + dx, 1, Agents.spacesize(model)[1]),
+               clamp(a.pos[2] + dy, 1, Agents.spacesize(model)[2]))
+    if isempty(agents_in_position(new_pos, model))
+        move_agent!(a, new_pos, model)
+    end
+end
