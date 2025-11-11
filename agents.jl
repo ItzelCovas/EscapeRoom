@@ -76,7 +76,7 @@ end
 
 # ========== Inicializar modelo ==========
 function initialize_model(; size=(10,10), key_positions=[])
-    space = GridSpace(size; periodic=false, metric = manhattan)
+    space = GridSpace(size; periodic=false, metric = :manhattan)
 
     model = StandardABM(
         Union{Ghost, Key},
