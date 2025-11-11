@@ -624,10 +624,10 @@ def Init():
     
     #  CAJAS DE COLISION ---    
     # --- Paredes ---
-    wall_norte = [-10.0, 12.15, 7.8, 9.25]
-    wall_sur = [-8.80, 8.80, -4.85, -4.75]
-    wall_este = [9.45, 9.55, -4.80, 13.20]
-    wall_oeste = [-9.85, -9.75, -4.50, 7.0]
+    wall_norte = [-11.0, 11.0, 9.5, 10.5]
+    wall_sur = [-11.0, 11.0, -6.5, -5.5]
+    wall_este = [10.5, 11.5, -6.5, 10.5]
+    wall_oeste = [-11.5, -10.5, -6.5, 10.5]
     
     # Las paredes se añaden a AMBAS listas (jugador y fantasma)
     collision_boxes.extend([wall_norte, wall_sur, wall_este, wall_oeste])
@@ -635,8 +635,8 @@ def Init():
     
     # --- Props (muebles) ---
     prop_barril = [-9.10, -8.20, -4.0, -2.80]
-    prop_cajas = [8.95, 9.05, -3.60, -2.60]
-    prop_cofre = [8.95, 9.05, -4.90, -4.80] 
+    prop_cajas = [8.8, 9.2, -3.60, -2.60]
+    prop_cofre = [8.8, 9.2, -4.90, -4.80] 
     prop_mesa = [-2.70, -1.20, -1.60, 2.90]
     
     # Los muebles se añaden SÓLO a la lista del jugador
