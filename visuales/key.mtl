@@ -29,4 +29,4 @@ Pc 0.000000
 Pcr 0.030000
 aniso 0.000000
 anisor 0.000000
-map_Kd /Users/itzelcovarrubias/Desktop/KayKit_DungeonRemastered_1.1_FREE/Assets/obj/dungeon_texture.png
+map_Kd dungeon_texture.png
