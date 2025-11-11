@@ -53,7 +53,7 @@ def reparar_mtl(obj_filename):
                 tex_path = parts[1].strip().strip('"')
                 if os.path.isabs(tex_path):  # Si tiene una ruta absoluta
                     tex_name = os.path.basename(tex_path)
-                    print(f"🧩 Corrigiendo textura: {tex_path} → {tex_name}")
+                    print(f" Corrigiendo textura: {tex_path} → {tex_name}")
                     fixed_lines.append(f"map_Kd {tex_name}\n")
                     continue
         fixed_lines.append(line)
@@ -62,7 +62,7 @@ def reparar_mtl(obj_filename):
     with open(mtl_path, 'w', encoding='utf-8', errors='ignore') as f:
         f.writelines(fixed_lines)
 
-    print(f"✅ Archivo MTL reparado correctamente: {mtl_path}")
+    print(f"Archivo MTL reparado correctamente: {mtl_path}")
 
 # CLASE GHOST 
 class Ghost:
@@ -591,7 +591,9 @@ def Init():
     reparar_mtl('barril.obj')
     props_escondite.append(PropEstatico('barril.obj', pos=pos_barril, scale=1.0))
     key1 = Key('key.obj', pos=[-8.65, 1.0, -3.4], scale=1.5)
-
+    key1.is_hidden = False      # ✅ VISIBLE desde el inicio
+    key1.is_visible = True      # ✅ Ya aparece en el mundo
+    
     # 2. Escondite CAJAS
     reparar_mtl('cajas.obj')
     props_escondite.append(PropEstatico('cajas.obj', pos=pos_cajas, scale=1.0))
@@ -614,13 +616,6 @@ def Init():
     
     reparar_mtl('puerta.obj')
     puerta_salida = Puerta('puerta.obj', pos=pos_puerta, scale=1.0)
-    
-    # #se crean las 3 llaves
-    # keys_list = [
-    #     Key('key.obj', pos=[10, 5, 30], scale=4.0),
-    #     Key('key.obj', pos=[-30, 5, -20], scale=4.0),
-    #     Key('key.obj', pos=[20, 5, -20], scale=4.0)
-    # ]
     
     #  CAJAS DE COLISION ---    
     # --- Paredes ---
@@ -719,7 +714,7 @@ def draw_text(text, x, y, color=(255, 255, 255)):
     
 def get_ghost_from_julia():
     try:
-        res=requests.get("http://localhost:8000/update", timeout=0.5)
+        res=requests.get("http://localhost:8000/update", timeout=2.0)
         data=res.json()
         if "ghosts" in data and data["ghosts"]:
             pos = data["ghosts"][0]
@@ -956,6 +951,20 @@ while not done:
                                 game_state['llaves_recogidas'] += 1
                                 # NOTIFICAR A JULIA: llave recolectada
                                 notify_key_collected(key.grid_x, key.grid_y)
+                                
+                            # ✨ NUEVA LÓGICA: Revelar la siguiente llave
+                                try:
+                                    current_index = keys_list.index(key)
+                                    next_index = current_index + 1
+                                    if next_index < len(keys_list):
+                                        next_key = keys_list[next_index]
+                                        if next_key.is_hidden:
+                                            next_key.is_hidden = False
+                                            next_key.is_visible = True
+                                            notify_key_revealed(next_key.grid_x, next_key.grid_y)
+                                            print(f"¡Llave {next_index + 1} ahora es visible!")
+                                except ValueError:
+                                    pass
                         interacted_with_key = True
                         break # Interactúa solo con la primera llave que encuentra
                 

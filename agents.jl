@@ -15,22 +15,50 @@ end
     is_collected::Bool   # Ya la tiene el jugador
 end
 
+# 🔍 Función auxiliar: Buscar en círculo creciente
+function search_in_radius(center_pos, radius, model)
+"""Busca LA única llave visible dentro de un radio específico"""
+for agent in allagents(model)
+    if agent isa Key && agent.is_visible && !agent.is_collected
+        distance = sqrt(sum((center_pos .- agent.pos).^2))
+        if distance <= radius
+            return (agent, distance)
+        end
+    end
+end
+return nothing
+end
+
 #Comportamiento del agente
 function agent_step!(agent, model)
     if agent isa Ghost
-        #Buscar llaves no recolectadas
-        keys=[k for k in allagents(model) if k isa Key && k.is_visible && !k.is_collected]
+        # 🎯 BÚSQUEDA EN CÍRCULOS CONCÉNTRICOS CRECIENTES
+        max_search_radius = 15  # Radio máximo de búsqueda
+        search_step = 2.0       # Incremento del radio en cada iteración
+        
+        target_pos = nothing
+        found_distance = nothing
 
-        if !isempty(keys)
-            #Encontrar la llave más cerca
-            distances=[sqrt(sum((agent.pos .- k.pos).^2)) for k in keys]
-            idx=argmin(distances)
-            target=keys[idx].pos
+        # Buscar desde radio pequeño hasta grande (solo hay UNA llave visible)
+        for radius in 1.0:search_step:max_search_radius
+            result = search_in_radius(agent.pos, radius, model)
+            
+            if !isnothing(result)
+                target_key, distance = result
+                target_pos = target_key.pos
+                found_distance = distance
+                
+                @info "🔍 Fantasma detectó llave en $(target_pos) (radio: $radius, dist: $(round(distance, digits=2)))"
+                break
+            end
+        end
 
-            #Calcular direción hacía la llave
-            dx=sign(target[1]-agent.pos[1])
-            dy=sign(target[2]-agent.pos[2])
-            new_pos=(agent.pos[1]+dx, agent.pos[2]+dy)
+        # Si encontró LA llave visible, moverse hacia ella
+        if !isnothing(target_pos)
+            #Calcular dirección hacia la llave
+            dx = sign(target_pos[1] - agent.pos[1])
+            dy = sign(target_pos[2] - agent.pos[2])
+            new_pos = (agent.pos[1] + dx, agent.pos[2] + dy)
 
             # Verificar límites del espacio
             size = Agents.spacesize(model)
@@ -41,14 +69,13 @@ function agent_step!(agent, model)
                 end
             end
 
-            #Recolectar la llave
-            if agent.pos==target
-                #keys[idx].collected=true
-                agent.has_key=true
-                @info "Fantasma ha encontrado una llave en $(agent.pos)"
+            # Verificar si alcanzó la llave
+            if agent.pos == target_pos
+                agent.has_key = true
+                @info "¡Fantasma atrapó la llave en $(agent.pos)!"
             end
         else
-            #Si no hay llaves
+            # No hay llaves visibles, movimiento aleatorio (patrulla)
             randomwalk!(agent, model)
         end
     end
