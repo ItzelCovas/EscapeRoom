@@ -1,3 +1,5 @@
+#webapi.jl
+
 include("agents.jl")
 using Genie, Genie.Renderer.Json, Genie.Requests, HTTP, Logging
 using UUIDs
@@ -27,11 +29,13 @@ end
 route("/init_keys", method = POST) do
     try
         payload = jsonpayload()
-        key_positions = payload["keys"]::Vector
+        
+        key_positions = payload["keys"] 
         
         global model
-        # Crear el modelo nuevo
-        model = initialize_model(key_positions=[(Int(k[1]), Int(k[2])) for k in key_positions])
+        coords = [(Int(k[1]), Int(k[2])) for k in key_positions]
+        
+        model = initialize_model(key_positions=coords)
         
         for agent in allagents(model)
             if agent isa Ghost
@@ -40,7 +44,7 @@ route("/init_keys", method = POST) do
             end
         end
 
-        @info "♻️ REINICIO TOTAL: Modelo recreado y Fantasma purificado."
+        @info "♻️ REINICIO TOTAL: Modelo recreado con $(length(coords)) llaves."
         json(Dict("status" => "ok"))
     catch e
         @error "Error en /init_keys" exception=e

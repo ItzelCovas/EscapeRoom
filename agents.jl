@@ -28,16 +28,18 @@ function search_in_radius(center_pos::NTuple{2,Int}, radius::Real, model)
     return nothing
 end
 
-# Comportamiento del fantasma
+
+# Comportamiento del fantasma (guía y ladrón) 
 function agent_step!(agent, model)
     if agent isa Ghost
-        # --- Si es MALVADO (busca llaves) ---
+        # COMPORTAMIENTO MALO (Ladrón)
         if agent.is_evil
             max_search_radius = 5.0
-            search_step = 2.0
+            search_step = 2.0 
             target_key = nothing
             target_pos = nothing
 
+            # Buscar llave
             for radius in 1.0:search_step:max_search_radius
                 result = search_in_radius(agent.pos, radius, model)
                 if !isnothing(result)
@@ -54,23 +56,77 @@ function agent_step!(agent, model)
                 
                 size = Agents.spacesize(model)
                 if 1 <= new_pos[1] <= size[1] && 1 <= new_pos[2] <= size[2]
-                    if isempty(agents_in_position(new_pos, model))
+                    
+                    agents_there = agents_in_position(new_pos, model)
+                    can_move = true
+                    for occ in agents_there
+                        if !(occ isa Key) 
+                            can_move = false # Bloqueado por pared u otro fantasma
+                        end
+                    end
+                    
+                    if can_move
                         move_agent!(agent, new_pos, model)
                     end
                 end
 
+                # Verificar si se comió la llave
                 if agent.pos == target_pos
                     agent.has_key = true
                     target_key.is_collected = true
                     target_key.is_visible = false
-                    @info "👻 Fantasma ROBÓ la llave!"
+                    @info "👻 Fantasma se comió la llave en $(target_pos)"
                 end
             else
                 randomwalk!(agent, model)
             end
+
+        # COMPORTAMIENTO BUENO (Guía)
         else
-            # Si es bueno (random) 
-            randomwalk!(agent, model)
+            closest_key = nothing
+            min_dist = Inf
+            
+            # Buscar llave más cercana (Global)
+            for a in allagents(model)
+                if a isa Key && a.is_visible && !a.is_collected
+                    d = sqrt(sum((agent.pos .- a.pos).^2))
+                    if d < min_dist
+                        min_dist = d
+                        closest_key = a
+                    end
+                end
+            end
+
+            if !isnothing(closest_key)
+                target_pos = closest_key.pos
+                
+                # PARKING
+                if agent.pos == target_pos
+                    return 
+                end
+                
+                # Movimiento hacia la llave
+                dx = sign(target_pos[1] - agent.pos[1])
+                dy = sign(target_pos[2] - agent.pos[2])
+                new_pos = (agent.pos[1] + dx, agent.pos[2] + dy)
+                
+                size = Agents.spacesize(model)
+                if 1 <= new_pos[1] <= size[1] && 1 <= new_pos[2] <= size[2]
+                    agents_there = agents_in_position(new_pos, model)
+                    can_move = true
+                    for occ in agents_there
+                        if !(occ isa Key)
+                            can_move = false
+                        end
+                    end
+
+                    if can_move
+                        move_agent!(agent, new_pos, model)
+                    end
+                end
+            else
+                randomwalk!(agent, model) 
+            end
         end
     end
 end
@@ -86,7 +142,7 @@ function initialize_model(; size=(10,10), key_positions=[])
     add_agent_own_pos!(ghost, model) 
 
     # ID para las llaves: 2 en adelante
-    # contador 'i' empieza en 1, así que + 1 para que el primer ID sea 2
+    # contador 'i' empieza en 1 así que + 1 para que el primer ID sea 2
     for (i, pos) in enumerate(key_positions)
         key_id = i + 1
         key = Key(key_id, pos, false, true, false)
