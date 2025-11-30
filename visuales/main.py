@@ -156,7 +156,7 @@ class Personaje:
         self.x = 0.0; self.y = 0.0; self.z = 5.0
         self.angle_y = 180.0
         self.radius = 1.0
-        self.walk_time = 0.0; self.walk_speed = 8.0
+        self.walk_time = 0.0; self.walk_speed = 12.0
 
     def update(self, dt, is_moving):
         if is_moving: self.walk_time += dt
@@ -170,8 +170,8 @@ class Personaje:
             
             self.body.render()
             
-            # Animación simple
-            angle = math.sin(self.walk_time * self.walk_speed) * 20.0
+            # Animación  de caminar
+            angle = math.sin(self.walk_time * self.walk_speed) * 10.0 #10 es el ángulo máximo de oscilación de las extremidades 
             
             # Extremidades
             for part, a in [(self.arm_l, -angle), (self.arm_r, angle), 
@@ -208,8 +208,11 @@ class Key:
         self.model = objloader.OBJ(model_path); self.model.generate()
         self.x = pos[0]; self.y = pos[1]; self.z = pos[2]        
         
-        self.grid_x = int((self.x / 10.2) + 5.5)
-        self.grid_y = int((self.z / 10.2) + 5.5)
+        self.grid_x = int((self.x / 2.2) + 5.5)
+        self.grid_y = int((self.z / 2.2) + 5.5)
+        
+        self.grid_x = max(1, min(10, self.grid_x))
+        self.grid_y = max(1, min(10, self.grid_y))
         
         self.scale = scale
         self.angle_y = 0.0
@@ -449,7 +452,6 @@ def lookat():
 def display(dt, is_moving):
     global frame_count
     
-    # 1. Limpieza de pantalla y cámara
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     lookat()
     
@@ -460,44 +462,52 @@ def display(dt, is_moving):
     puerta_salida.draw()
     for p in props_escondite: p.draw()
     
-    # 3. LÓGICA DE RED
     frame_count += 1
     
     can_update = time.time() > server_cooldown
     
-    # Ejecutamos la lógica de red cada 5 frames Y solo si ya pasaron los 2 segs
     if can_update and frame_count % 5 == 0: 
-        # Llamada segura que no crashea
         ghost_info, active_keys_from_julia = get_game_state()
         
-        # Desempaquetamos la info del fantasma
         gx, gy, is_evil_server = ghost_info
         
-        # Solo procesamos si hay datos válidos (gx no es None)
         if gx is not None:
-            # A) Actualizar posición objetivo del fantasma
+            # Actualizar posición objetivo del fantasma
             ghost.set_target_position(gx, gy)
             
-            # B) Actualizar estado (Malo/Bueno)
+            if not is_evil_server:
+                #  a qué llave está yendo 
+                dist_min = 999
+                target_k = None
+                for k in keys_list:
+                    if not k.is_collected:
+                        d = math.sqrt((gx - k.grid_x)**2 + (gy - k.grid_y)**2)
+                        if d < dist_min:
+                            dist_min = d
+                            target_k = k
+                
+                estado = "Moviéndose"
+                if dist_min == 0: estado = "Esperando en llave"
+                
+                print(f"debugg ({gx}, {gy}) -> {estado} | Distancia a llave: {dist_min:.1f}")
+            
+            # Actualizar estado (Malo/Bueno)
             ghost.update_state(is_evil_server)
             
-            # C) LÓGICA DE LLAVES (1 por 1 y con distancia)
             server_keys_set = set(active_keys_from_julia)
             
             for k in keys_list:
-                # Solo analizamos llaves que aun existen visualmente
-                if k.is_visible and not k.is_collected:
+                if k.is_visible and not k.is_collected: #si la llave está visible
                     
-                    # Si el servidor dice que esta llave YA NO EXISTE:
                     if (k.grid_x, k.grid_y) not in server_keys_set:
                         
-                        # Calculamos distancia REAL entre fantasma y llave
+                        # se calcula distancia real entre fantasma y llave
                         dist_x = ghost.x - k.x
                         dist_z = ghost.z - k.z
                         dist_real = math.sqrt(dist_x*dist_x + dist_z*dist_z)
                         
-                        # Solo desaparece si: Es Malo Y está cerca (< 3.0 unidades)
-                        if is_evil_server and dist_real < 3.0:
+                        #  ha sido comida por el fantasma sólo si está cerca, es malo y está a menos de 2 unidades
+                        if is_evil_server and dist_real < 2.0:
                             print(f"👻 Fantasma comió llave en {k.grid_x}, {k.grid_y}")
                             k.is_visible = False
                             k.is_collected = True
@@ -513,7 +523,6 @@ def display(dt, is_moving):
         k.update(dt)
         k.draw()
     
-    # 5. Dibujar Personajes
     ghost.draw()     #se dibujará con esfera roja si is_evil=True
     personaje.draw()
     
@@ -530,7 +539,7 @@ def display(dt, is_moving):
     if game_state['game_over']: 
         draw_text("¡PERDISTE!", 400, 400, (255,0,0))
     if game_state['win']: 
-        draw_text("¡GANASTE!", 400, 400, (0,255,0))
+        draw_text("ESCAPASTE!", 400, 400, (0,255,0))
         
     #draw_text(f"X: {personaje.x:.2f} | Z: {personaje.z:.2f}", 10, 10, (255, 255, 0))
 
