@@ -312,7 +312,7 @@ def notify_evil_trigger():
 def init_keys_in_julia():
     global ghost, server_cooldown
     
-    print("🧹 Realizando limpieza local del fantasma...")
+    print("Realizando limpieza local del fantasma...")
     ghost.is_evil = False           
     ghost.set_target_position(5, 5)  
     ghost.x, ghost.z = ghost.target_x, ghost.target_z 
@@ -320,13 +320,13 @@ def init_keys_in_julia():
     server_cooldown = time.time() + 2.0 
     
     try:
-        print("⏳ Enviando petición de reinicio a Julia...")
+        print("Enviando petición de reinicio a Julia...")
         key_positions = [(k.grid_x, k.grid_y) for k in keys_list]
         requests.post("http://localhost:8000/init_keys", json={"keys": key_positions}, timeout=1.0)
-        print("✅ Petición enviada.")
+        print("Petición enviada.")
             
     except Exception as e:
-        print(f"❌ Error contactando a Julia (pero el reset local funcionará): {e}")
+        print(f"Error contactando a Julia (pero el reset local funcionará): {e}")
 
 def notify_key_collected(gx, gy):
     try:
@@ -510,7 +510,7 @@ def display(dt, is_moving):
                         
                         #  ha sido comida por el fantasma sólo si está cerca, es malo y está a menos de 2 unidades
                         if is_evil_server and dist_real < 2.0:
-                            print(f"👻 Fantasma comió llave en {k.grid_x}, {k.grid_y}")
+                            print(f"Fantasma comió llave en {k.grid_x}, {k.grid_y}")
                             k.is_visible = False
                             k.is_collected = True
                             game_state['ghost_ate_key'] = True
@@ -621,7 +621,7 @@ while not done:
 
     # Check fin juego (puerta)
     if game_state['llaves_recogidas'] == game_state['total_llaves'] and not game_state['puerta_abierta']:
-        print("🎉 ¡TODAS LAS LLAVES RECOGIDAS! Abriendo puerta...")
+        print("¡TODAS LAS LLAVES RECOGIDAS! Abriendo puerta...")
         puerta_salida.abrir() # Esto cambia el target_x de la puerta
         game_state['puerta_abierta'] = True
 
@@ -642,7 +642,7 @@ while not done:
     posibles_totales = game_state['llaves_recogidas'] + llaves_vivas 
     
     if posibles_totales < game_state['total_llaves'] and not game_state['game_over']:
-        print("💀 Ya no quedan suficientes llaves en el mapa. GAME OVER.")
+        print("Ya no quedan suficientes llaves en el mapa. GAME OVER.")
         game_state['game_over'] = True
 
     display(dt, is_moving)
