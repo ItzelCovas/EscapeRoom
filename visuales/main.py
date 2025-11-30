@@ -381,11 +381,13 @@ def Init():
     print("Cargando llaves...")
     reparar_mtl('key.obj')
     keys_list = [
-        Key('key.obj', pos=[-8.65, 1.0, -3.4], scale=1.5),
+        Key('key.obj', pos=[-8.65, 1.0, -2.4], scale=1.5),
         Key('key.obj', pos=[9.0, 1.0, -3.1], scale=1.5),
-        Key('key.obj', pos=[8.70, 1.0, 1.15], scale=1.5)
+        Key('key.obj', pos=[8.70, 1.0, 1.15], scale=1.5),
+        Key('key.obj', pos=[-8.0, 1.0, 7.0], scale=1.5),
+        Key('key.obj', pos=[6.0, 1.0, 7.0], scale=1.5)
     ]
-    game_state['total_llaves'] = len(keys_list)
+    game_state['total_llaves'] = 3
     
     reparar_mtl('puerta.obj')
     puerta_salida = Puerta('puerta.obj', pos=[0,0,0])
@@ -628,15 +630,19 @@ while not done:
         if dist_puerta < 4.0: # Distancia para salir
             interaction_message = "¡CORRE! Presiona ESPACIO para SALIR"
             
-            # Si presiona espacio aquí, gana
             if keys[pygame.K_SPACE]: 
                 game_state['win'] = True
 
-    # Lógica de Game Over si el fantasma come ---
-    # Si el fantasma se come una llave, YA NO PODEMOS GANAR (porque faltará 1)
-    # Así que activamos Game Over inmediatamente.
-    if game_state.get('ghost_ate_key', False) and not game_state['game_over']:
-        print("💀 El fantasma se comió una llave vital. GAME OVER.")
+    # Calculamos cuántas llaves quedan vivas + las que se tengan
+    llaves_vivas = 0
+    for k in keys_list:
+        if k.is_visible and not k.is_collected: 
+            llaves_vivas += 1
+    
+    posibles_totales = game_state['llaves_recogidas'] + llaves_vivas 
+    
+    if posibles_totales < game_state['total_llaves'] and not game_state['game_over']:
+        print("💀 Ya no quedan suficientes llaves en el mapa. GAME OVER.")
         game_state['game_over'] = True
 
     display(dt, is_moving)
