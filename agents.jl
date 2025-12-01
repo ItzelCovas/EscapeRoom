@@ -213,7 +213,19 @@ function agent_step!(agent, model)
         # COMPORTAMIENTO BUENO (Guía)
         else
             # Si no tiene camino o llegó al destino, buscar nueva llave
-            if isempty(agent.path) || agent.path_index > length(agent.path)
+            need_new_path = isempty(agent.path) || agent.path_index > length(agent.path)
+
+            # También necesitamos nuevo camino si llegamos a la posición actual del path
+            if !need_new_path && agent.path_index <= length(agent.path)
+                if agent.pos == agent.path[agent.path_index]
+                    agent.path_index += 1
+                    if agent.path_index > length(agent.path)
+                        need_new_path = true
+                    end
+                end
+            end
+
+            if need_new_path
                 closest_key = find_closest_key(agent.pos, model)
                 
                 if !isnothing(closest_key)
@@ -225,9 +237,9 @@ function agent_step!(agent, model)
                     # Calcular nuevo camino
                     try
                         agent.path = a_star(agent.pos, closest_key.pos, model)
-                        agent.path_index = 1
+                        agent.path_index = 2  # ⬅️ CAMBIO: empezar en 2, no en 1
                         
-                        if !isempty(agent.path)
+                        if !isempty(agent.path) && length(agent.path) > 1
                             @info "Fantasma guía calculó camino de $(length(agent.path)) pasos hacia $(closest_key.pos)"
                         end
                     catch e
@@ -241,17 +253,7 @@ function agent_step!(agent, model)
             # Seguir el camino
             if !isempty(agent.path) && agent.path_index <= length(agent.path)
                 next_pos = agent.path[agent.path_index]
-                
-                # Si llegó a la llave, quedarse ahí
-                if next_pos == agent.path[end]
-                    agents_there = agents_in_position(next_pos, model)
-                    has_key_here = any(a -> a isa Key && a.is_visible && !a.is_collected, agents_there)
-                    
-                    if has_key_here && agent.pos == next_pos
-                        return  # Quedarse en la llave
-                    end
-                end
-
+        
                 # Mover al siguiente paso
                 agents_there = agents_in_position(next_pos, model)
                 can_move = true
@@ -264,6 +266,17 @@ function agent_step!(agent, model)
                 if can_move
                     move_agent!(agent, next_pos, model)
                     agent.path_index += 1
+                    
+                    # Si llegó a la llave, quedarse ahí
+                    for key_agent in agents_in_position(agent.pos, model)
+                        if key_agent isa Key && key_agent.is_visible && !key_agent.is_collected
+                            # Limpiar camino para que se quede en esta posición
+                            agent.path = Tuple{Int,Int}[]
+                            agent.path_index = 1
+                            @info "Fantasma guía llegó a la llave en $(agent.pos)"
+                            break
+                        end
+                    end
                 else
                     # Camino bloqueado, recalcular
                     agent.path = Tuple{Int,Int}[]
