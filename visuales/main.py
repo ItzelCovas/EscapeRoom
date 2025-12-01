@@ -136,7 +136,9 @@ class Ghost:
 
             # DIBUJAR ESFERA - radio (2.5) ajustar tamaño
             aura_radius = 3.5 
-            glutSolidSphere(aura_radius, 20, 20)
+            quadric=gluNewQuadric()
+            gluSphere(quadric, aura_radius, 20, 20)
+            gluDeleteQuadric(quadric)
             
             glPopAttrib()
             
@@ -338,9 +340,13 @@ def notify_key_collected(gx, gy):
 def Init():
     global personaje, ghost, escenario, decoracion, props_escondite, mesa_prop, keys_list, puerta_salida, ui_font, collision_boxes
     
-    # 1. Configuración de Ventana y OpenGL
+    # Configuración de Ventana y OpenGL
     screen = pygame.display.set_mode((screen_width, screen_height), DOUBLEBUF | OPENGL)
-    glutInit()
+    try:
+        glutInit()
+    except:
+        pass
+    
     pygame.display.set_caption("EscapeRoom: The Evil Table")
     
     glMatrixMode(GL_PROJECTION); glLoadIdentity()
