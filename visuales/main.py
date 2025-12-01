@@ -136,7 +136,7 @@ class Ghost:
 
             # DIBUJAR ESFERA - radio (2.5) ajustar tamaño
             aura_radius = 3.5 
-            #glutSolidSphere(aura_radius, 20, 20)
+            glutSolidSphere(aura_radius, 20, 20)
             
             glPopAttrib()
             
